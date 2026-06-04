@@ -10,9 +10,9 @@ The task IDs (`T-NNN`) and feature IDs (`F-NNN`) used below are the same IDs fro
 
 ## Phase 1, Foundation and skeleton deploy
 
-**Goal.** A working monorepo locally AND a deployed empty shell at `https://crewmate.ritaro.dev`. Both apps boot to placeholder pages, the schema is migrated, the local infra is up, the CI workflow is green, AWS and Cloudflare infrastructure is provisioned via Terraform plus Wrangler, two deploy workflows are wired, and the first production deploy serves the placeholder pages over HTTPS.
+**Goal.** A working monorepo locally AND a deployed empty shell at `https://crewmate.ritaro.dev`. Both apps boot to placeholder pages, the schema is migrated, the local infra is up, the CI workflow is green, Fly.io and Cloudflare infrastructure is provisioned, two deploy workflows are wired, and the first production deploy serves the placeholder pages over HTTPS.
 
-**Input.** A fresh clone, plus AWS and Cloudflare credentials populated per `docs/AGENT-SETUP.md` Setup status. Specifically: AWS account with the `crewmate-deploy` IAM user or OIDC role configured, Cloudflare account with the `ritaro.dev` zone delegated, `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` stored as GitHub Actions secrets, AWS credentials stored as GitHub Actions secrets, and the local docker-compose stack able to start.
+**Input.** A fresh clone, plus Fly.io and Cloudflare credentials populated per `docs/AGENT-SETUP.md` Setup status. Specifically: Fly.io account with `FLY_API_TOKEN` stored as a GitHub Actions secret, Cloudflare account with the `ritaro.dev` zone delegated, `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` stored as GitHub Actions secrets, and the local docker-compose stack able to start.
 
 **Output.**
 - `pnpm install && pnpm dev` brings up the api on `:3000` and the web on `:3001` without errors.
@@ -20,10 +20,11 @@ The task IDs (`T-NNN`) and feature IDs (`F-NNN`) used below are the same IDs fro
 - `pnpm prisma migrate dev` succeeds with the v0.1 schema.
 - `pnpm lint && pnpm typecheck && pnpm test` are all green (no production code yet, but the harness runs).
 - GitHub Actions CI workflow runs and goes green on a dummy PR.
-- Terraform IaC applied for the AWS side. RDS, ElastiCache, S3, ECR, ECS, ALB all provisioned. The ALB security group ingress is restricted to Cloudflare's published IP ranges. `CLOUDFLARE_SHARED_SECRET` lives in Secrets Manager.
-- `apps/web/wrangler.toml` checked in alongside the Worker proxy handler at `apps/web/src/worker/proxy.ts`. Wrangler secrets `BACKEND_ORIGIN` and `CLOUDFLARE_SHARED_SECRET` set on the Worker. Cloudflare DNS for `crewmate.ritaro.dev` points at the Worker route.
-- Two GitHub Actions deploy workflows live and green. `deploy-api.yml` (OIDC to AWS) and `deploy-web.yml` (Cloudflare API token), both gated by the `prod` environment manual approval.
-- DNS cutover complete. `https://crewmate.ritaro.dev` returns the placeholder login page through the Worker. `https://crewmate.ritaro.dev/api/healthz` returns 200 through the Worker proxy. A direct request to the AWS ALB without the shared secret returns 401.
+- Fly.io app `crewmate-api` created. Fly Postgres provisioned (auto-sets `DATABASE_URL`). Upstash Redis free tier provisioned (`rediss://` URL set as Fly secret `REDIS_URL`). `CLOUDFLARE_SHARED_SECRET` and JWT secrets set via `fly secrets set`.
+- `fly.toml` checked in alongside `docker/api.Dockerfile`. `release_command` set to `npx prisma migrate deploy`.
+- `apps/web/wrangler.toml` checked in alongside the Worker proxy handler at `apps/web/src/worker/proxy.ts`. Wrangler secrets `BACKEND_ORIGIN` (`https://crewmate-api.fly.dev`) and `CLOUDFLARE_SHARED_SECRET` set on the Worker. Cloudflare DNS for `crewmate.ritaro.dev` points at the Worker route.
+- Two GitHub Actions deploy workflows live and green. `deploy-api.yml` (`FLY_API_TOKEN` secret) and `deploy-web.yml` (Cloudflare API token), both gated by the `prod` environment manual approval.
+- DNS cutover complete. `https://crewmate.ritaro.dev` returns the placeholder login page through the Worker. `https://crewmate.ritaro.dev/api/healthz` returns 200 through the Worker proxy. A direct request to `https://crewmate-api.fly.dev` without the shared secret returns 401.
 
 **Tasks.**
 
@@ -36,28 +37,26 @@ The task IDs (`T-NNN`) and feature IDs (`F-NNN`) used below are the same IDs fro
 | 1.0 | Next.js web skeleton, single placeholder login page | foundation | parallel |
 | 1.0 | `@crewmate/contracts` and `@crewmate/ui` placeholder exports | foundation | parallel |
 | 1.0 | GitHub Actions CI workflow with postgres + redis service containers | F-132 | after 1.0 bootstraps land |
-| 1.1 | Terraform network module. VPC, subnets, NAT, security groups including the Cloudflare IP allowlist on the ALB security group | F-121 | — |
-| 1.1b | Terraform data module. RDS Postgres 17 single-AZ, ElastiCache Redis 7 single node, S3 buckets | F-121 | after 1.1 network |
-| 1.1b | Terraform secrets module. Secrets Manager entries (DB URL, JWT secrets, webhook signing secret, `CLOUDFLARE_SHARED_SECRET`), IAM task roles | F-121 | after 1.1 network, parallel with data |
-| 1.2 | Terraform compute module. ECS cluster, api and worker services, task definitions, ALB. No ACM certificate for a custom api subdomain | F-120, F-121 | after 1.1b |
-| 1.2 | Wrangler config and Worker proxy handler. `apps/web/wrangler.toml`, plus `apps/web/src/worker/proxy.ts` that forwards `/api/*`, `/v1/*`, `/graphql`, `/ws` to `BACKEND_ORIGIN` with the shared-secret header. Cloudflare DNS record for `crewmate.ritaro.dev`. Wrangler secrets set | F-120, F-121 | parallel with compute |
-| 1.2 | Dockerfile for the api image (used by both api and worker services). NestJS global guard that checks `x-cloudflare-secret` against the Secrets Manager value and bypasses health endpoints | F-120, F-123 | parallel |
-| 1.3 | `deploy-api.yml` with OIDC trust to AWS and `prod` environment manual approval. Builds api image, pushes to ECR, runs migrations, rolls api + worker services | F-122 | after 1.2 |
+| 1.1 | Fly.io app creation. `fly apps create crewmate-api`. `fly.toml` with `release_command: npx prisma migrate deploy` and health check on `/healthz`. `docker/api.Dockerfile` for the api image (used for both api and worker processes) | F-120, F-121 | — |
+| 1.1b | Fly Postgres provisioned and attached to `crewmate-api` (auto-sets `DATABASE_URL`). Upstash Redis free tier created; `REDIS_URL` set as Fly secret. JWT secrets, webhook signing secret, and `CLOUDFLARE_SHARED_SECRET` set via `fly secrets set` | F-121 | after 1.1 |
+| 1.1b | NestJS global guard that checks `x-cloudflare-secret` against the Fly secret value and bypasses health endpoints | F-120, F-123 | parallel with Fly secrets setup |
+| 1.2 | Wrangler config and Worker proxy handler. `apps/web/wrangler.toml`, plus `apps/web/src/worker/proxy.ts` that forwards `/api/*`, `/v1/*`, `/graphql`, `/ws` to `BACKEND_ORIGIN` (`https://crewmate-api.fly.dev`) with the shared-secret header. Cloudflare DNS record for `crewmate.ritaro.dev`. Wrangler secrets set | F-120, F-121 | after 1.1b |
+| 1.3 | `deploy-api.yml` with `FLY_API_TOKEN` GitHub secret and `prod` environment manual approval. Runs `flyctl deploy --remote-only`; Fly.io builds the image remotely, runs the `release_command` migration, and rolls the machines. Smoke-tests `https://crewmate-api.fly.dev/healthz` and `/readyz` | F-122 | after 1.2 |
 | 1.3 | `deploy-web.yml` with a Cloudflare API token and `prod` environment manual approval. Builds the Next.js Worker bundle via `@opennextjs/cloudflare`, packaging the proxy handler at `apps/web/src/worker/proxy.ts` into the bundle, then `wrangler deploy` | F-122 | parallel with deploy-api.yml |
-| 1.4 | First production deploy. Both pipelines through the `prod` gate. DNS cutover. Production smoke `https://crewmate.ritaro.dev` returns the placeholder login page. `https://crewmate.ritaro.dev/api/healthz` returns 200. Direct requests to the AWS ALB without the shared secret return 401 | F-120 | manual, final step |
+| 1.4 | First production deploy. Both pipelines through the `prod` gate. DNS cutover. Production smoke `https://crewmate.ritaro.dev` returns the placeholder login page. `https://crewmate.ritaro.dev/api/healthz` returns 200. Direct requests to `https://crewmate-api.fly.dev` without the shared secret return 401 | F-120 | manual, final step |
 
 **Parallelism within phase 1.**
 
 - Wave 1.0 (foundation tasks) edits root configs and is serial-leaning. 2 to 3 agents.
-- Wave 1.1 (Terraform network) blocks 1.1b.
-- Wave 1.1b (data + secrets modules) is mutually parallel.
-- Wave 1.2 (compute, Cloudflare config, Dockerfile) needs 1.1b. Compute, Cloudflare config, Dockerfile are mutually parallel.
+- Wave 1.1 (Fly.io app + Dockerfile) blocks 1.1b.
+- Wave 1.1b (Fly Postgres, Upstash Redis, Fly secrets, NestJS guard) is mutually parallel once the app exists.
+- Wave 1.2 (Wrangler config + Worker proxy) needs 1.1b (needs `BACKEND_ORIGIN` value).
 - Wave 1.3 (deploy workflows) needs 1.2. Both workflows are mutually parallel.
 - Wave 1.4 (first deploy) is the final serial step and exercises both pipelines.
 
 **Parallelism cap.** 3 to 4 agents. Many tasks share root configs or have ordering constraints.
 
-**Gate.** Run `pnpm dev` locally and confirm both ports reachable. Then visit `https://crewmate.ritaro.dev` and confirm the placeholder page loads. Then `curl https://crewmate.ritaro.dev/api/healthz` returns 200. Then `curl <alb-direct-url>/healthz` without the shared secret returns 401. CI green on a dummy PR.
+**Gate.** Run `pnpm dev` locally and confirm both ports reachable. Then visit `https://crewmate.ritaro.dev` and confirm the placeholder page loads. Then `curl -f https://crewmate-api.fly.dev/healthz -H "x-cloudflare-secret: <secret>"` returns 200. Then `curl https://crewmate-api.fly.dev/healthz` without the shared secret returns 401. Then `curl https://crewmate.ritaro.dev/api/healthz` returns 200 through the Worker proxy. CI green on a dummy PR.
 
 Phase 1 is heavier than the original 6-task Foundation because the deploy work moves here. The trade is that every gate from phase 2 onward is a click-through on the live URL.
 
@@ -122,7 +121,7 @@ Phase 1 is heavier than the original 6-task Foundation because the deploy work m
 
 **Goal.** Every API endpoint and worker from `docs/FEATURES.md` works against `curl` or Postman in production. The UI is not changed in this phase; the mock providers from phase 2 stay in place. Phase 4 swaps them.
 
-**Continuous deploy.** Every merge to `main` triggers `deploy-api.yml`, which builds the api image, runs `prisma migrate deploy` as a one-shot ECS task, and rolls the api plus worker services. After the `prod` approval click, you can `curl` the live api at `https://crewmate.ritaro.dev/api/*`.
+**Continuous deploy.** Every merge to `main` triggers `deploy-api.yml`, which runs `flyctl deploy --remote-only` (Fly.io builds the image remotely, runs `prisma migrate deploy` via the `release_command`, and rolls the machines). After the `prod` approval click, you can `curl` the live api at `https://crewmate.ritaro.dev/api/*`.
 
 **Input.** Phase 2 gate signed off.
 
@@ -134,7 +133,7 @@ Phase 1 is heavier than the original 6-task Foundation because the deploy work m
 - Resend email integration sends a test email locally to MailHog and is wired for prod.
 - Every endpoint returns the documented response shape from `@crewmate/contracts`.
 - Audit log rows are written on every protected request.
-- The api is running on AWS, reachable through the Worker proxy at `https://crewmate.ritaro.dev/api/*`.
+- The api is running on Fly.io, reachable through the Worker proxy at `https://crewmate.ritaro.dev/api/*`.
 
 **Tasks.**
 

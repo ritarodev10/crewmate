@@ -24,7 +24,7 @@ Status surfaces in the UI in two places. The sidebar renders a small colored dot
 | Operators, Workers, Jobs with full state machine, transitions API | Webhook endpoint configuration UI, simulated signed-delivery worker, retry schedule honored by the simulator, webhook deliveries log UI | Resend integration with verified sender domain, transactional email templates |
 | Realtime dispatch board over WebSocket with tenant rooms, job detail drawer, optimistic transitions, worker mobile-responsive view with one-tap transitions | Analytics overview dashboard | |
 | Event bus and outbox writer, REST plus GraphQL surface, validation at boundaries, structured logs to CloudWatch, error contract over the wire | Team management surfaces (members list, invite dialog, member drawer) | |
-| Single-domain deploy (web and proxied api at `crewmate.ritaro.dev` on Cloudflare Workers; NestJS api and BullMQ worker on AWS ECS Fargate behind a private ALB), Terraform IaC for AWS, wrangler config for the Worker, two GitHub Actions deploy workflows, health endpoints, critical-path unit tests, integration test, CI test pipeline | | |
+| Single-domain deploy (web and proxied api at `crewmate.ritaro.dev` on Cloudflare Workers; NestJS api and BullMQ worker on Fly.io at `crewmate-api.fly.dev`), AWS IaC reference in `infrastructure/terraform/` (portfolio artifact, not applied), `fly.toml` + Fly.io secrets for the API, wrangler config for the Worker, two GitHub Actions deploy workflows, health endpoints, critical-path unit tests, integration test, CI test pipeline | | |
 
 For items intentionally not on the roadmap (Stripe, Twilio, PWA, OpenTelemetry, multi-region, dark mode, internationalization, and others), see the **Out of scope** section at the end of this document.
 
@@ -269,7 +269,7 @@ Every feature in the catalog below. Use this as the jump-table. Each row links t
 
 **Status.** Live.
 **Scope.** Native NestJS WebSocket gateway. Each socket joins a `tenant:<operatorId>` room on connect, authenticated against the same JWT used by REST. Subscriptions for `job.status.changed`, `job.assigned`, `webhook.delivery.*`. Scope-aware filtering so a coordinator only receives events for their scoped properties.
-**Surface.** `wss://crewmate.ritaro.dev/ws` (proxied by the Cloudflare Worker to the AWS backend) plus the local `ws://localhost:3000`.
+**Surface.** `wss://crewmate.ritaro.dev/ws` (proxied by the Cloudflare Worker to the Fly.io backend) plus the local `ws://localhost:3000`.
 **Spec.** `docs/guardrails/shared/02-events.md`, `docs/guardrails/backend/00-nestjs.md`.
 **Acceptance.** Two browsers connected as different coordinators see only events that match their scope.
 
@@ -488,7 +488,7 @@ The third template is optional and may land in a later milestone if the first tw
 ### F-114: Structured logging
 
 **Status.** Live.
-**Scope.** Pino in production (JSON), pretty in dev. Every log line carries `requestId`, `tenantId`, `actorUserId` when available. Request ID propagated via async-local-storage. Logs ship to CloudWatch via the ECS `awslogs` driver. No OpenTelemetry tracing, no Sentry, no PostHog on the current roadmap.
+**Scope.** Pino in production (JSON), pretty in dev. Every log line carries `requestId`, `tenantId`, `actorUserId` when available. Request ID propagated via async-local-storage. Logs go to stdout and are captured by Fly.io's log infrastructure (viewable via `fly logs`). No OpenTelemetry tracing, no Sentry, no PostHog on the current roadmap.
 **Spec.** `docs/guardrails/backend/00-nestjs.md`, `docs/guardrails/backend/04-error-handling.md`.
 
 ### F-115: Error contract over the wire
@@ -504,23 +504,23 @@ The third template is optional and may land in a later milestone if the first tw
 ### F-120: Production deployment
 
 **Status.** Live.
-**Scope.** Single-domain production deployment. The entire public surface is `https://crewmate.ritaro.dev`. A single Cloudflare Worker serves the Next.js app and reverse-proxies four path prefixes (`/api/*`, `/v1/*`, `/graphql`, `/ws`) to the AWS backend. The AWS backend (NestJS API and BullMQ worker behind an ALB, Postgres on RDS, Redis on ElastiCache, object storage on S3, image registry on ECR) has no public domain; the Worker is the only intended caller. Caller authenticity is enforced via a shared `x-cloudflare-secret` header and an ALB security group ingress restricted to Cloudflare's IP ranges. Cookies are same-origin (no `Domain=` attribute needed). Cloudflare Universal SSL (free) terminates TLS at the edge.
+**Scope.** Single-domain production deployment. The entire public surface is `https://crewmate.ritaro.dev`. A single Cloudflare Worker serves the Next.js app and reverse-proxies four path prefixes (`/api/*`, `/v1/*`, `/graphql`, `/ws`) to the Fly.io backend at `https://crewmate-api.fly.dev`. The Fly.io backend (NestJS API and BullMQ worker) is the only intended caller target; Fly.io provides HTTPS natively (no ALB needed). Caller authenticity is enforced via a shared `x-cloudflare-secret` header injected by the Worker on every proxied request. Cookies are same-origin (no `Domain=` attribute needed). Cloudflare Universal SSL (free) terminates TLS at the edge.
 **Surface.** Single URL: `https://crewmate.ritaro.dev`.
 **Spec.** `docs/AGENT-SETUP.md` (deploy section), `docs/BUILD.md` (layer 12).
-**Acceptance.** `https://crewmate.ritaro.dev` returns the login page. `https://crewmate.ritaro.dev/api/healthz` returns 200 via the proxied path. Direct requests to the AWS ALB without the shared secret return 401.
+**Acceptance.** `https://crewmate.ritaro.dev` returns the login page. `https://crewmate.ritaro.dev/api/healthz` returns 200 via the proxied path. Direct requests to `https://crewmate-api.fly.dev` without the shared secret return 401.
 
 ### F-121: Infrastructure as code
 
 **Status.** Live.
-**Scope.** Terraform manages the AWS side. The Cloudflare side is configured via `apps/web/wrangler.toml` plus one-time Cloudflare dashboard setup for the DNS zone. Terraform modules: `network` (VPC, subnets, NAT, security groups including the Cloudflare IP allowlist on the ALB security group), `data` (RDS, ElastiCache, S3), `secrets` (Secrets Manager, IAM task roles, the `CLOUDFLARE_SHARED_SECRET` entry), `compute` (ECS cluster, API + worker services, ALB). No `edge` module. No ACM certificate for a custom api subdomain. State backend in S3 with DynamoDB lock.
-**Surface.** `infrastructure/terraform/` for AWS, `apps/web/wrangler.toml` plus Wrangler secrets for the Worker.
+**Scope.** Active deploy infrastructure is configured via `fly.toml` (Fly.io app config, `release_command` for migrations) and `apps/web/wrangler.toml` (Cloudflare Worker config). Fly.io secrets hold DB URL (auto-set by Fly Postgres), Upstash Redis URL, JWT secrets, webhook signing secret, and `CLOUDFLARE_SHARED_SECRET`. The AWS Terraform modules in `infrastructure/terraform/` are a portfolio artifact documenting the original AWS architecture (VPC, RDS, ElastiCache, ECS, ALB) — they are not applied to any live environment.
+**Surface.** `fly.toml`, `apps/web/wrangler.toml`, Wrangler secrets for the Worker, Fly.io secrets for the API. `infrastructure/terraform/` as a portfolio reference only.
 **Spec.** `docs/BUILD.md` layer 12.
-**Acceptance.** `terraform apply` from a fresh state brings up the AWS side reachable at the ALB's AWS-issued URL. `wrangler deploy` from `apps/web/` brings up the Worker. End-to-end the site at `https://crewmate.ritaro.dev` answers.
+**Acceptance.** `flyctl deploy` from the repo root brings up the Fly.io side reachable at `https://crewmate-api.fly.dev`. `wrangler deploy` from `apps/web/` brings up the Worker. End-to-end the site at `https://crewmate.ritaro.dev` answers.
 
 ### F-122: GitHub Actions deploy workflows
 
 **Status.** Live.
-**Scope.** Two deploy workflows on push to main. `deploy-api.yml` uses OIDC trust to AWS, builds the api image, pushes to ECR, runs `prisma migrate deploy` as a one-shot ECS task, rolling-updates api and worker services. `deploy-web.yml` builds the Next.js Worker bundle via the `@opennextjs/cloudflare` adapter (including the proxy handler for `/api/*`, `/v1/*`, `/graphql`, `/ws`), then runs `wrangler deploy` with a Cloudflare API token from a GitHub secret. Both gated by a manual approval on the GitHub `prod` environment.
+**Scope.** Two deploy workflows on push to main. `deploy-api.yml` uses the `FLY_API_TOKEN` GitHub secret, runs `flyctl deploy --remote-only` (Fly.io builds the image remotely, runs `prisma migrate deploy` via the `release_command` in `fly.toml`, and rolls the machines). `deploy-web.yml` builds the Next.js Worker bundle via the `@opennextjs/cloudflare` adapter (including the proxy handler for `/api/*`, `/v1/*`, `/graphql`, `/ws`), then runs `wrangler deploy` with a Cloudflare API token from a GitHub secret. Both gated by a manual approval on the GitHub `prod` environment.
 **Surface.** `.github/workflows/deploy-api.yml`, `.github/workflows/deploy-web.yml`.
 **Spec.** `docs/BUILD.md` layer 12.
 **Acceptance.** A push to main triggers both workflows. After approval, both deploy within ~10 minutes. The smoke job confirms `https://crewmate.ritaro.dev` returns the login page and `https://crewmate.ritaro.dev/api/healthz` returns 200.
@@ -528,10 +528,10 @@ The third template is optional and may land in a later milestone if the first tw
 ### F-123: Health endpoints
 
 **Status.** Live.
-**Scope.** `GET /healthz` (liveness) and `GET /readyz` (readiness, checks DB plus Redis) on the api. The ALB target group health check uses `/readyz` against the ALB's AWS-issued URL. Browsers reach these endpoints via the Worker proxy at `https://crewmate.ritaro.dev/api/healthz` and `/api/readyz`. The shared-secret check is bypassed for the health endpoints so the ALB target group probe can reach them directly.
+**Scope.** `GET /healthz` (liveness) and `GET /readyz` (readiness, checks DB plus Redis) on the api. Fly.io health checks use `/readyz` against `https://crewmate-api.fly.dev/readyz`. Browsers reach these endpoints via the Worker proxy at `https://crewmate.ritaro.dev/api/healthz` and `/api/readyz`. The shared-secret check is bypassed for the health endpoints so the Fly.io health prober can reach them directly.
 **Surface.** `/healthz`, `/readyz` on the api; reachable in browsers via `https://crewmate.ritaro.dev/api/healthz`.
 **Spec.** `docs/guardrails/backend/00-nestjs.md`.
-**Acceptance.** `https://crewmate.ritaro.dev/api/healthz` returns 200 from prod. Killing the RDS connection makes `/readyz` return 503 within 5 seconds.
+**Acceptance.** `https://crewmate.ritaro.dev/api/healthz` returns 200 from prod. Killing the Fly Postgres connection makes `/readyz` return 503 within 5 seconds.
 
 ---
 

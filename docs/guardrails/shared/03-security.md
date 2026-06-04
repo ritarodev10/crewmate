@@ -18,7 +18,7 @@ Anything beyond these four is either out of scope for v0.1 (see the last section
 ## Authentication
 
 - Stateless JWT issued by `AuthService` after a password login (F-002).
-- Access token TTL 15 minutes. Refresh token TTL 7 days (F-003). Both signed with separate secrets pulled from AWS Secrets Manager in production.
+- Access token TTL 15 minutes. Refresh token TTL 7 days (F-003). Both signed with separate secrets stored as Fly.io secrets in production.
 - Tokens carry only what guards need. `sub` (user id), `operatorId`, `roles`, `iat`, `exp`. No PII.
 - The web app stores both tokens in httpOnly cookies (F-003). JavaScript never reads the token. CSRF posture is documented below.
 
@@ -102,8 +102,8 @@ The deliveries log (F-063) shows the raw signed payload so an integrator can deb
 
 ## Transport and edge
 
-- TLS terminates at the ALB (F-120). ACM provides the certificate.
-- CloudFront sits in front of the ALB. Default managed CloudFront protections are the floor. Anything beyond (custom WAF rules, IP allowlisting) is out of scope for v0.1.
+- TLS is handled by Fly.io natively for the API (`crewmate-api.fly.dev`) and by Cloudflare Universal SSL for the public domain (`crewmate.ritaro.dev`). No ACM certificate or ALB is needed.
+- Cloudflare WAF default managed rules are the floor for the public domain. Anything beyond (custom WAF rules, IP allowlisting) is out of scope for v0.1.
 - `Strict-Transport-Security` is set in production by the application. `helmet` is enabled with default headers.
 - `X-Frame-Options: DENY` on the API. The API is not embedded.
 
@@ -127,7 +127,7 @@ No CSRF token middleware in v0.1. The rule above is the contract.
 
 - All secrets read through `ConfigService`. No `process.env` outside `core/config`.
 - `.env` is gitignored. `.env.example` is committed with placeholder values and inline documentation.
-- Production secrets live in AWS Secrets Manager and are pulled into the ECS task environment at start (F-120). Never in code, never in CI logs.
+- Production secrets live in Fly.io secrets (`fly secrets set`) and are injected into the app environment at start (F-120). Never in code, never in CI logs.
 - The redaction list. The following are never written to logs, error responses, audit rows, or any persisted artifact:
   - User passwords (plain or hashed)
   - JWT contents (the full token string and any decoded claims beyond `sub` and `operatorId`)
@@ -137,7 +137,7 @@ No CSRF token middleware in v0.1. The rule above is the contract.
 
 ## Rate limiting
 
-> **TODO (deferred).** v0.1 does not ship application-level rate limiting. CloudFront and ALB defaults are the floor. A `@nestjs/throttler` config with stricter limits on `POST /v1/auth/login` and `POST /v1/auth/refresh` is the planned follow-up.
+> **TODO (deferred).** v0.1 does not ship application-level rate limiting. Cloudflare WAF defaults are the floor. A `@nestjs/throttler` config with stricter limits on `POST /v1/auth/login` and `POST /v1/auth/refresh` is the planned follow-up.
 
 ## Logging and PII
 
@@ -160,17 +160,17 @@ Before merging a new endpoint, the PR description confirms each.
 - [ ] Input validated (DTO + `ValidationPipe`, Zod at the boundary).
 - [ ] Output mapped through a response DTO (no entity leak).
 - [ ] Errors follow the contract in `backend/04-error-handling.md` and do not leak existence across tenants.
-- [ ] Any new secret is added to `.env.example` and to AWS Secrets Manager.
+- [ ] Any new secret is added to `.env.example` and to Fly.io secrets (`fly secrets set`).
 - [ ] A test covers the happy path and at least one auth failure.
 
 ## What is intentionally not in v0.1 security
 
 The portfolio scope is `docs/FEATURES.md`. The following are explicitly deferred and should not show up in code review feedback as missing.
 
-- **WAF rules beyond CloudFront defaults.** No custom AWS WAF rule set. No managed rule subscriptions.
+- **WAF rules beyond Cloudflare defaults.** No custom Cloudflare WAF rule set. No managed rule subscriptions.
 - **IP allowlisting.** No admin-only IP gates. No country blocks.
 - **Automated dependency scanning beyond GitHub Dependabot defaults.** No Snyk, no `pnpm audit` CI gate, no SBOM generation.
-- **Secret rotation jobs.** Manual rotation via AWS Secrets Manager is the v0.1 story. No scheduled Lambda, no rotation runbook drill.
+- **Secret rotation jobs.** Manual rotation via `fly secrets set` is the v0.1 story. No automated rotation runbook drill.
 - **Penetration tests, SOC 2, or any compliance framework.** Not in v0.1.
 - **On-call paging, escalation matrices, runbooks.** CloudWatch alarms on `/readyz` exist per F-123. Beyond that is real-ops work and out of scope.
 - **SLOs, SLAs, error budgets.** No availability target is published. The deploy is single-AZ per F-120.

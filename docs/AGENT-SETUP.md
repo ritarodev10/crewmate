@@ -32,11 +32,14 @@ Everything below is documented in more depth in the sections that follow. This t
 | claude.ai subscription | Running the Claude Code agents (CLI signs in to this) | Now, blocking | claude.ai |
 | GitHub | Source control plus Actions for CI and deploy | Soon, before you push the repo | github.com |
 | Cloudflare | Workers deploy, DNS, TLS for `ritaro.dev` | Phase 1 deploy wave | cloudflare.com |
-| AWS | API backend, database, Redis, S3, ECR, ALB | Phase 1 deploy wave | aws.amazon.com |
+| Fly.io | API backend, managed Postgres, Fly secrets | Phase 1 deploy wave | fly.io |
+| Upstash | Managed Redis (free tier, `rediss://` URL set as Fly secret) | Phase 1 deploy wave | upstash.com |
 | webhook.site | Free public test target so seeded webhook deliveries have somewhere real to land | Optional, used by seed | webhook.site |
 | Resend | Production transactional email | When F-070 promotes from Planned to Live | resend.com |
 | ChatGPT Plus subscription | Optional, image generation via `codex` for any new UI mock asset | Optional | chat.openai.com |
 | MCP servers | Extend the agent with structured tool calls (Context7 docs, Postgres + Redis introspection, browser automation) | Configured per agent runner | see section 2 |
+
+> AWS IaC reference code lives in `infrastructure/terraform/` — not applied to any live environment. It is retained as a portfolio artifact documenting the original AWS architecture.
 
 The agent never signs up for anything on your behalf. Sign up yourself, then drop the resulting credentials where the section below tells you to.
 
@@ -99,7 +102,8 @@ To refresh this section, run the audit script at the bottom and ask the agent to
 | Docker daemon running | OK (Docker Desktop, Linux engine). `crewmate-postgres`, `crewmate-redis`, `crewmate-mailhog` all up via `docker compose up -d`. Postgres + Redis report healthy | none. `docker compose down` to stop, `docker compose up -d` to resume |
 | git | OK | none |
 | `gh` (GitHub CLI) | OK, authed as `ritarodev10` | none |
-| `aws` CLI | OK via the official AWS pkg installer at `/usr/local/aws-cli/aws` (symlinked from `/usr/local/bin/aws`, aliased in `~/.zshrc`). The brew `awscli` bottle is also installed at `/opt/homebrew/bin/aws` and is BROKEN (pyexpat / libexpat ABI mismatch); the alias bypasses it for interactive shells. Identity: `arn:aws:iam::382888552421:user/crewmate-deploy`, region `us-east-1` | optional cleanup: `brew uninstall awscli` so the agent's non-interactive Bash sessions also pick up the working binary (the alias is zsh-only) |
+| `aws` CLI | OK (present for portfolio reference; not used for active deploys). Identity: `arn:aws:iam::382888552421:user/crewmate-deploy` | not blocking; `infrastructure/terraform/` is a portfolio artifact only |
+| `flyctl` | TODO | `brew install flyctl`, then `fly auth login` |
 | `wrangler` | OK (v4.85.0). Authed via `CLOUDFLARE_API_TOKEN` env var (verified). Default `wrangler whoami` fails because the env var is not yet in `~/.zshrc` and the OAuth flow has not run | add `export CLOUDFLARE_API_TOKEN=...` and `export CLOUDFLARE_ACCOUNT_ID=...` to `~/.zshrc` so wrangler picks them up by default, OR run `wrangler login` for OAuth |
 | `claude` | OK, authed | none |
 | `codex` | OK, authed | none |
@@ -143,8 +147,10 @@ To refresh this section, run the audit script at the bottom and ask the agent to
 | Cloudflare account | OK (ritarodev@gmail.com, account `3373131fbb96ad70dba144829d43f0d4`). Zone `ritaro.dev` ACTIVE — `dig +short NS ritaro.dev` returns `joan.ns.cloudflare.com` + `rocky.ns.cloudflare.com` | none |
 | `CLOUDFLARE_API_TOKEN` | OK (in `CREDENTIALS.local.md`). Account-scoped, verified with `wrangler whoami` against the env var | add as GitHub Actions secret when repo is pushed; also add `export CLOUDFLARE_API_TOKEN=...` to `~/.zshrc` so wrangler picks it up by default |
 | `CLOUDFLARE_ACCOUNT_ID` | OK (in `CREDENTIALS.local.md`) | same destinations |
-| AWS account | OK. Account `382888552421`. IAM user `crewmate-deploy` with `AdministratorAccess`, region `us-east-1` | confirm the $20/mo budget cap under Billing → Budgets |
-| AWS access key + secret OR OIDC role ARN | OK locally (key in `~/.aws/credentials` `[crewmate]`, verified via `aws sts get-caller-identity`) | paste into GitHub Actions secrets `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY` when repo is pushed (or switch to OIDC at that point) |
+| Fly.io account | TODO | sign up at fly.io, run `fly auth login`, create the app with `fly apps create crewmate-api` |
+| `FLY_API_TOKEN` | TODO | generate via `fly tokens create deploy -a crewmate-api`; add as GitHub Actions secret `FLY_API_TOKEN` |
+| Upstash Redis | TODO | create a free Redis database at upstash.com; set the `rediss://` URL as `fly secrets set REDIS_URL=rediss://...` |
+| AWS account (portfolio reference) | OK. Account `382888552421`. IAM user `crewmate-deploy`. `infrastructure/terraform/` is retained as a portfolio artifact and is not applied to any live environment | no deploy action needed; keep credentials local for portfolio reference |
 | Resend | DEFERRED (F-070 Planned) | nothing now |
 | webhook.site URL | OPTIONAL | grab a URL for the seed when you reach phase 1 seed task |
 
@@ -162,25 +168,25 @@ To refresh this section, run the audit script at the bottom and ask the agent to
 | `.github/workflows/deploy-api.yml` | MISSING | phase 1 wave 1.3 |
 | `.github/workflows/deploy-web.yml` | MISSING | phase 1 wave 1.3 |
 | `apps/web/wrangler.toml` + Worker proxy handler | MISSING | phase 1 wave 1.2 |
-| `infrastructure/terraform/` | MISSING | phase 1 waves 1.1 and 1.2 |
+| `fly.toml` | MISSING | phase 1 wave 1.1 |
+| `infrastructure/terraform/` | MISSING | portfolio reference artifact (not applied to any live environment) |
 | Git remote `origin` | MISSING (intentional per `COMMIT-PLAN.md`) | push when ready |
 
 ### Shell env vars
 
-Values exist; they are not yet exported in `~/.zshrc`. Until they are, you must pass them per-command (e.g. `AWS_PROFILE=crewmate aws ...`, `CLOUDFLARE_API_TOKEN=... wrangler ...`).
+Values exist; they are not yet exported in `~/.zshrc`. Until they are, you must pass them per-command (e.g. `CLOUDFLARE_API_TOKEN=... wrangler ...`).
 
 | Variable | Status | Action |
 |---|---|---|
 | `CLOUDFLARE_API_TOKEN` | value in `CREDENTIALS.local.md`, not in shell | add `export CLOUDFLARE_API_TOKEN=<value>` to `~/.zshrc` |
 | `CLOUDFLARE_ACCOUNT_ID` | value in `CREDENTIALS.local.md`, not in shell | add `export CLOUDFLARE_ACCOUNT_ID=3373131fbb96ad70dba144829d43f0d4` to `~/.zshrc` |
-| `AWS_PROFILE` | profile `crewmate` configured at `~/.aws/credentials`, not set in shell | add `export AWS_PROFILE=crewmate` to `~/.zshrc` |
-| `AWS_REGION` | `us-east-1` configured in `~/.aws/config` for profile `crewmate` | optional `export AWS_REGION=us-east-1` (profile already sets it) |
+| `FLY_API_TOKEN` | TODO | generate via `fly tokens create deploy -a crewmate-api`; add `export FLY_API_TOKEN=<value>` to `~/.zshrc` and as a GitHub Actions secret |
 
 ### What blocks each phase
 
 | Phase | Blockers right now |
 |---|---|
-| Phase 1 Foundation + skeleton deploy | nothing blocking. Optional polish: `brew uninstall awscli` (so non-interactive shells resolve the working binary), persist cloud env vars in `~/.zshrc`, decide `postgres:16-alpine` vs `postgres:17-alpine` in `docker-compose.yml`. (All cloud accounts, API tokens, IAM user, AWS credentials, Cloudflare zone, Docker Desktop + compose stack, postgres + redis MCPs are DONE.) GitHub Actions secrets and AWS Secrets Manager entries are deferred until the repo is pushed and wave 1.1b runs |
+| Phase 1 Foundation + skeleton deploy | Create Fly.io account, run `fly auth login`, create the `crewmate-api` app, provision Fly Postgres, provision Upstash Redis, generate `FLY_API_TOKEN`. Persist `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `FLY_API_TOKEN` in `~/.zshrc`. Add `FLY_API_TOKEN`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` as GitHub Actions secrets when repo is pushed. (Cloudflare zone, Docker Desktop + compose stack, postgres + redis MCPs are DONE.) |
 | Phase 2 UI with dummy data | nothing once phase 1 lands; merges auto-deploy via `deploy-web.yml` |
 | Phase 3 Backend | add `postgres` and `redis` MCPs to `~/.claude.json` (not strictly required but high-leverage); merges auto-deploy via `deploy-api.yml` |
 | Phase 4 Wire up | nothing extra; merges auto-deploy via whichever side changed |
@@ -194,22 +200,14 @@ Phase 1 ships the deploy infrastructure, so the prerequisites are heavier than a
 |---|---|---|
 | 1 | `corepack prepare pnpm@10 --activate` (and bump `package.json` `packageManager` to `pnpm@10.x`) | DONE |
 | 2 | Open Docker Desktop AND `docker compose up -d` | DONE. All three services up; postgres + redis healthy |
-| 3 | Install awscli | DONE via the official AWS pkg installer at `/usr/local/aws-cli/aws`. Brew bottle is also present and broken; `brew uninstall awscli` recommended so non-interactive shells don't pick the broken one |
-| 4 | Sign up for AWS; set the $20/mo budget cap; create the `crewmate-deploy` IAM user with `AdministratorAccess`; run `aws configure --profile crewmate` | DONE (account `382888552421`, region `us-east-1`, verified via `aws sts get-caller-identity`) |
+| 3 | Install `flyctl` via `brew install flyctl` or `curl -L https://fly.io/install.sh | sh` | TODO |
+| 4 | Sign up for Fly.io; run `fly auth login`; create app with `fly apps create crewmate-api`; provision Fly Postgres via `fly postgres create` and attach it; create Upstash Redis free tier and set `fly secrets set REDIS_URL=rediss://...`; generate deploy token via `fly tokens create deploy -a crewmate-api` | TODO |
 | 5 | Sign up for Cloudflare; add the `ritaro.dev` zone; generate the scoped API token | DONE (account `3373131fbb96ad70dba144829d43f0d4`, zone ACTIVE, token verified via `wrangler whoami`) |
-| 6 | Persist credentials. Add `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `AWS_PROFILE=crewmate` to `~/.zshrc`. Paste the AWS access key and Cloudflare API token into the matching GitHub Actions secrets when the repo is pushed | TODO (env vars to zshrc now; GitHub Actions secrets after `gh repo create`) |
+| 6 | Persist credentials. Add `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `FLY_API_TOKEN` to `~/.zshrc`. Paste the Fly.io deploy token and Cloudflare API token into the matching GitHub Actions secrets when the repo is pushed | TODO (env vars to zshrc now; GitHub Actions secrets after `gh repo create`) |
 | 7 | Add the `postgres` and `redis` blocks to `~/.claude.json` `mcpServers` per the snippet in section 2 below | DONE (restart Claude Code to pick them up) |
 | 8 | Run `playwriter skill` once | TODO, run on first playwriter use |
 
-If you want to start phase 1 work locally first and add the deploy waves later in the same phase, the minimum to begin is steps 1, 2, 7, 8. The agent can land the foundation tasks (monorepo, docker-compose, schema, CI workflow) without cloud credentials; you provide them before wave 1.7.
-
-**awscli workaround.** On this machine, `aws --version` errors with a `_XML_SetAllocTrackerActivationThreshold` symbol-not-found in pyexpat. The brew bottle for awscli is linked against `python@3.14` whose pyexpat shim expects an expat ABI not present in macOS's system libexpat. Try one of these in order:
-
-1. `brew install expat && brew reinstall python@3.14 awscli` (rebuild against brew's expat).
-2. If 1 still fails, install awscli from the official AWS pkg at https://awscli.amazonaws.com/AWSCLIV2.pkg (bypasses brew entirely; installs to `/usr/local/aws-cli/`).
-3. As a temporary unblock, use the dockerized cli: `docker run --rm -ti -v ~/.aws:/root/.aws -v "$(pwd):/aws" amazon/aws-cli <command>`.
-
-This is not blocking until phase 1 wave 1.7 (Terraform network module). You have time.
+If you want to start phase 1 work locally first and add the deploy waves later in the same phase, the minimum to begin is steps 1, 2, 7, 8. The agent can land the foundation tasks (monorepo, docker-compose, schema, CI workflow) without cloud credentials; you provide them before wave 1.1.
 
 ### How to re-audit
 
@@ -283,26 +281,26 @@ The full stack the agent assumes. Anything not listed here is fair game to intro
 
 ### Production deployment
 
-All public traffic enters at one domain, `https://crewmate.ritaro.dev`. A single Cloudflare Worker serves the Next.js app and reverse-proxies four path prefixes (`/api/*`, `/v1/*`, `/graphql`, `/ws`) to the AWS backend. The AWS backend has no public domain; it is reachable only via the ALB's AWS-issued DNS name (e.g. `<alb-id>.us-east-1.elb.amazonaws.com`) and the Worker is the only intended caller. Cookies are same-origin with no `Domain=` attribute. Single environment (prod only), single AWS region, single-AZ RDS. Cloudflare Universal SSL (free) terminates TLS at the edge; no ACM certificate is needed for a custom api subdomain. Outbound email goes through Resend in production rather than SES.
+All public traffic enters at one domain, `https://crewmate.ritaro.dev`. A single Cloudflare Worker serves the Next.js app and reverse-proxies four path prefixes (`/api/*`, `/v1/*`, `/graphql`, `/ws`) to the Fly.io backend at `https://crewmate-api.fly.dev`. The Fly.io backend is the only intended caller target; Fly.io provides HTTPS natively (no ALB or ACM certificate needed). Cookies are same-origin with no `Domain=` attribute. Single environment (prod only). Outbound email goes through Resend in production.
+
+> AWS IaC reference code lives in `infrastructure/terraform/` — not applied to any live environment.
 
 | Component | Service |
 |---|---|
 | Next.js web | Cloudflare Workers (via `@opennextjs/cloudflare`) |
 | API proxy logic (`/api/*`, `/v1/*`, `/graphql`, `/ws`) | The same Cloudflare Worker, a small `fetch`-based router |
-| NestJS API | AWS ECS Fargate, behind an ALB with no public domain |
-| BullMQ worker | AWS ECS Fargate, same image as the API |
-| Postgres | AWS RDS, single AZ |
-| Redis | AWS ElastiCache, single node |
-| Object storage | AWS S3 |
-| Container registry | AWS ECR |
-| Load balancer | AWS ALB, AWS-issued DNS only, ingress restricted to Cloudflare IPs |
+| NestJS API | Fly.io (`crewmate-api.fly.dev`), HTTPS native |
+| BullMQ worker | Fly.io, same image as the API (different process command) |
+| Postgres | Fly Postgres (managed by Fly, `DATABASE_URL` auto-set) |
+| Redis | Upstash Redis free tier (`rediss://` URL set as Fly secret) |
+| Container builds | Fly.io remote build from `fly.toml` + `docker/api.Dockerfile` |
 | DNS, edge cache, WAF, TLS | Cloudflare |
-| Secrets (AWS) | AWS Secrets Manager (DB URL, JWT secrets, webhook signing secret, `CLOUDFLARE_SHARED_SECRET`) |
+| Secrets (API) | Fly.io secrets (`fly secrets set`) — DB URL, JWT secrets, webhook signing secret, `CLOUDFLARE_SHARED_SECRET` |
 | Secrets (Cloudflare) | Wrangler secrets (`BACKEND_ORIGIN`, `CLOUDFLARE_SHARED_SECRET`) |
-| Logs (api + worker) | AWS CloudWatch Logs |
+| Logs (api + worker) | Fly.io log infrastructure (stdout, viewable via `fly logs`) |
 | Logs (web) | Cloudflare Workers logs and trace events |
 
-Caller authenticity to the AWS backend is enforced two ways. The Worker injects an `x-cloudflare-secret` header on every proxied request and a global NestJS guard rejects requests without it. The ALB security group ingress is also restricted to Cloudflare's published IP ranges. Defense in depth.
+Caller authenticity to the Fly.io backend is enforced by the Worker injecting an `x-cloudflare-secret` header on every proxied request; a global NestJS guard rejects requests without it. Defense in depth.
 
 ---
 
@@ -444,7 +442,8 @@ These are the credentials the agent uses on your behalf via command-line tools. 
 | CLI tool | What for | Auth command | Check command | Credential location (writable?) |
 |---|---|---|---|---|
 | `gh` | GitHub PRs, issues, repo create | `gh auth login` | `gh auth status` | `~/.config/gh/hosts.yml` (managed by gh, do not edit by hand) |
-| `aws` | AWS console + Terraform | `aws configure` or `aws sso login` | `aws sts get-caller-identity` | `~/.aws/credentials` and `~/.aws/config` (writable, see file format below) |
+| `flyctl` | Fly.io deploy and management | `fly auth login` | `fly auth whoami` | `~/.fly/` (managed by flyctl). Alternative: `FLY_API_TOKEN` env var for CI |
+| `aws` | Portfolio reference only (`infrastructure/terraform/`) | `aws configure` | `aws sts get-caller-identity` | `~/.aws/credentials` and `~/.aws/config` (writable) |
 | `wrangler` | Cloudflare Workers deploy and local dev | `wrangler login` | `wrangler whoami` | `~/.wrangler/` (managed by wrangler). Alternative: env vars `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` in your shell rc |
 | `docker` | Building images locally | `docker login` (only when pushing) | `docker info` | `~/.docker/config.json` (managed by docker login) |
 | `claude` | The agent runner | `claude` (first-run prompt) | `claude --version` | `~/.claude/` (managed by the CLI) |
@@ -496,9 +495,9 @@ Three ways to give `wrangler` and Cloudflare API tooling access.
 
 **Cloudflare.** Sign up at cloudflare.com. Add the `ritaro.dev` zone (Sites, Add a Site, then point your registrar at the assigned Cloudflare nameservers). The first time you run `wrangler login`, a browser opens and you authorize the local CLI. The token wrangler stores covers Workers Scripts:Edit and Zone:DNS:Edit on the zones in your account.
 
-**AWS.** Sign up at aws.amazon.com. Set a billing alert under Billing, Budgets, before you do anything else (cap at twenty dollars per month for v0.1, the default free tier covers most of it). Create an IAM user with `AdministratorAccess` to start (you can narrow it later). Generate an access key for that user. Run `aws configure` and paste the access key, secret, default region (`us-east-1` or `eu-west-1`), default output (`json`). For production, prefer OIDC from GitHub Actions (no long-lived keys ever leave the GitHub vault); see section 7 for the OIDC setup.
+**AWS (portfolio reference only).** The `infrastructure/terraform/` directory contains the original Terraform modules as a portfolio artifact. They are not applied to any live environment. The existing `~/.aws/credentials` profile `[crewmate]` is retained for local reference. No AWS deploy actions are needed for active development.
 
-**Docker Desktop.** No login required for local dev. Only `docker login` if you ever push to a registry by hand (the CI does this for you via AWS ECR).
+**Docker Desktop.** No login required for local dev. Fly.io performs remote builds from `docker/api.Dockerfile`; no local image push to a registry is needed.
 
 **codex (optional).** Sign up for ChatGPT Plus at chat.openai.com if you want to use ChatGPT quota for image generation. Run `codex login` and authorize the CLI against the subscription.
 
@@ -574,23 +573,24 @@ The CI workflow at `.github/workflows/ci.yml` reads `DATABASE_URL` and a few oth
 
 ### 7. Deployment (when you're ready to ship)
 
-Production lives on one public domain, `https://crewmate.ritaro.dev`, served by a Cloudflare Worker that also reverse-proxies api paths to the AWS backend. The lists below cover both sides. Items are needed only when the agent is asked to provision or deploy.
+Production lives on one public domain, `https://crewmate.ritaro.dev`, served by a Cloudflare Worker that also reverse-proxies api paths to the Fly.io backend. The lists below cover both sides. Items are needed only when the agent is asked to provision or deploy.
 
-**AWS (api and worker).**
+**Fly.io (api and worker).**
 
-| Need | What for | Notes | Where to find in the dashboard | Check command |
+| Need | What for | Notes | Where to find | Check command |
 |---|---|---|---|---|
-| AWS account | All cloud services | Sign up at aws.amazon.com. Free tier covers most of v0.1 | Top-right account menu, Account | `aws sts get-caller-identity` shows your account ID and ARN |
-| IAM user or role | Programmatic access | Create an IAM user with `AdministratorAccess` to start, narrow later. Or use OIDC from GitHub Actions (preferred, no long-lived keys) | IAM, Users, Create user | `aws iam get-user` (for a user) or `aws sts get-caller-identity` (for a role via OIDC) |
-| `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY` | For Terraform / GitHub Actions | Only if not using OIDC. Stored as GitHub Actions secrets, never committed | IAM, Users, your user, Security credentials, Create access key | `aws s3 ls` exits 0 if credentials and region are valid |
-| `AWS_REGION` | Default region | `us-east-1` or `eu-west-1` are common picks | Top-right region picker | `aws configure get region` |
-| `ECR_REPOSITORY` | Container registry | The agent will create this if missing | Elastic Container Registry, Repositories | `aws ecr describe-repositories` lists existing repos |
+| Fly.io account | API hosting, managed Postgres, secrets | Sign up at fly.io. Free allowances cover v0.1 | fly.io dashboard | `fly auth whoami` shows your email |
+| `flyctl` CLI | All Fly.io operations | `brew install flyctl` or `curl -L https://fly.io/install.sh \| sh` | — | `fly version` |
+| `fly apps create crewmate-api` | Creates the app | Run once from the repo root | Fly.io dashboard, Apps | `fly apps list` shows `crewmate-api` |
+| Fly Postgres | Managed Postgres (`DATABASE_URL` auto-set) | `fly postgres create` then `fly postgres attach` to the app | Fly.io dashboard, Postgres | `fly postgres list` |
+| Upstash Redis | Managed Redis (free tier) | Create at upstash.com; set `fly secrets set REDIS_URL=rediss://...` | upstash.com console | `fly secrets list` shows `REDIS_URL` |
+| `FLY_API_TOKEN` | `flyctl deploy` from GitHub Actions | `fly tokens create deploy -a crewmate-api`. Store as GitHub Actions secret `FLY_API_TOKEN` | Fly.io dashboard, Tokens | `fly tokens list` |
 
-The AWS ALB is reachable only via its AWS-issued DNS name; no ACM certificate for a custom api subdomain is needed.
+Fly.io provides HTTPS natively at `crewmate-api.fly.dev`. No ALB, no ACM certificate, no VPC setup needed.
 
 Per-account sign-up notes.
 
-**AWS account.** Sign up at aws.amazon.com with a payment card. The first thing to do after the account is live is open Billing, Budgets and set a monthly cap (twenty dollars covers v0.1 with margin). Then in IAM, create a user named `crewmate-deploy` with `AdministratorAccess`, generate an access key, and store the pair as the GitHub Actions secrets `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`. Used by Terraform and by `.github/workflows/deploy-api.yml`. For production, swap the access key for an OIDC trust policy that lets `github.com/<you>/crewmate` assume a deploy role; the agent will scaffold the trust JSON when asked.
+**Fly.io account.** Sign up at fly.io. Install `flyctl`. Run `fly auth login` (browser flow). Create the app with `fly apps create crewmate-api`. Provision Fly Postgres (`fly postgres create`, then `fly postgres attach --app crewmate-api`). Provision Upstash Redis at upstash.com (free tier) and set `fly secrets set REDIS_URL=rediss://<upstash-url>`. Set the remaining secrets: `fly secrets set JWT_ACCESS_SECRET=... JWT_REFRESH_SECRET=... WEBHOOK_SIGNING_SECRET=... CLOUDFLARE_SHARED_SECRET=...`. Generate a deploy token with `fly tokens create deploy -a crewmate-api` and store it as the GitHub Actions secret `FLY_API_TOKEN`. Used by `.github/workflows/deploy-api.yml`.
 
 **Cloudflare (web, proxy, and DNS).**
 
@@ -615,16 +615,17 @@ These are set on the Cloudflare Worker with `wrangler secret put <name>` (run fr
 
 | Secret | Purpose |
 |---|---|
-| `BACKEND_ORIGIN` | The AWS-issued ALB URL, for example `https://<alb-id>.us-east-1.elb.amazonaws.com`. The Worker uses this in its proxy `fetch` calls. |
-| `CLOUDFLARE_SHARED_SECRET` | The value the Worker injects as `x-cloudflare-secret` on every proxied request. Mirrored on the AWS side. |
+| `BACKEND_ORIGIN` | The Fly.io API URL: `https://crewmate-api.fly.dev`. The Worker uses this in its proxy `fetch` calls. |
+| `CLOUDFLARE_SHARED_SECRET` | The value the Worker injects as `x-cloudflare-secret` on every proxied request. Mirrored on the Fly.io side. |
 
-#### AWS secrets
+#### Fly.io secrets
 
-These live in AWS Secrets Manager and are pulled into the ECS task env at start.
+These are set on the Fly.io app with `fly secrets set <NAME>=<value>` (run from the repo root).
 
 | Secret | Purpose |
 |---|---|
-| `DATABASE_URL` | RDS Postgres connection string for the api and worker. |
+| `DATABASE_URL` | Fly Postgres connection string (auto-set when Fly Postgres is attached to the app). |
+| `REDIS_URL` | Upstash Redis `rediss://` connection string. |
 | `JWT_ACCESS_SECRET` | Signs short-lived access tokens. |
 | `JWT_REFRESH_SECRET` | Signs refresh tokens. |
 | `WEBHOOK_SIGNING_SECRET` | Signs outbound webhook payloads. |
@@ -632,7 +633,7 @@ These live in AWS Secrets Manager and are pulled into the ECS task env at start.
 
 ### 8. Observability backend
 
-CloudWatch is the only observability backend in v0.1. Structured pino logs ship via the ECS `awslogs` driver and carry request, tenant, and actor IDs on every line. No OpenTelemetry tracing, no Sentry, no PostHog, no status page. Future swaps are cheap because the logger is the only contact surface.
+Fly.io's log infrastructure is the observability backend in v0.1. Structured pino logs go to stdout and are captured by Fly.io; viewable with `fly logs -a crewmate-api`. Logs carry request, tenant, and actor IDs on every line. No OpenTelemetry tracing, no Sentry, no PostHog, no status page. Future swaps are cheap because the logger is the only contact surface.
 
 ---
 

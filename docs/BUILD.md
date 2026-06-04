@@ -12,13 +12,13 @@ The layers below are the architectural decomposition. They are not built top-to-
                 ┌──────────────────────────────────────────────┐
                 │  12 Deploy and infrastructure                │
                 │  (single domain on Cloudflare Workers,       │
-                │   Worker proxies api paths to AWS ECS,       │
-                │   IaC for AWS, CI)                           │
+                │   Worker proxies api paths to Fly.io,        │
+                │   IaC reference, CI)                         │
                 └────────────────────┬─────────────────────────┘
                                      │
    ┌─────────────────────────────────┴────────────────────────────┐
    │                          10 Observability                     │
-   │                  (pino, CloudWatch, request id)               │
+   │               (pino, Fly.io log drain, request id)            │
    └─────────────────────────────────┬────────────────────────────┘
                                      │
    ┌──────────────────────┐   ┌──────┴───────┐   ┌──────────────────┐
@@ -250,7 +250,7 @@ The contract between the backend and any client. REST for stable external use, G
 | REST controllers | Per feature module. Versioned under `/v1/`. Validated via `class-validator` DTOs plus Zod at the boundary. |
 | GraphQL resolvers | Code-first via `@nestjs/graphql`. Subscriptions wired to the in-process event bus. SDL generated to `packages/contracts/src/schema.graphql` and committed. |
 | Global exception filter | Translates every thrown error into the wire shape `{ code, message, requestId, details? }`. |
-| `HealthController` | `GET /healthz` (liveness) and `GET /readyz` (readiness, DB + Redis ping). ALB target group health check uses `/readyz`. |
+| `HealthController` | `GET /healthz` (liveness) and `GET /readyz` (readiness, DB + Redis ping). Fly.io health checks use `/readyz`. |
 
 **Done when.**
 - Every REST endpoint in F-020 through F-080 responds with the documented shape.
@@ -328,11 +328,11 @@ Transactional email via Resend in production, MailHog locally.
 
 ## 10. Observability
 
-Pino structured logs shipped to CloudWatch. No OpenTelemetry, no Sentry, no PostHog in v0.1.
+Pino structured logs shipped to stdout (picked up by Fly.io's log infrastructure). No OpenTelemetry, no Sentry, no PostHog in v0.1.
 
 **Code lives in.** `apps/api/src/common/logger/`, `apps/api/src/common/request-context/` (async-local-storage for the request id), `apps/api/src/common/interceptors/logging.interceptor.ts`.
 
-**Depends on.** Layer 1 (for the runtime), layer 12 (for the CloudWatch log driver in production).
+**Depends on.** Layer 1 (for the runtime), layer 12 (for the Fly.io log infrastructure in production).
 
 **Realizes.** F-114.
 
@@ -341,10 +341,10 @@ Pino structured logs shipped to CloudWatch. No OpenTelemetry, no Sentry, no Post
 - Every request line includes `requestId`, `operatorId`, `actorUserId` (where known), route, status, duration.
 - Every error includes the same context plus the stack.
 - Sensitive fields are redacted (passwords, JWT contents, signing secrets, full third-party payloads).
-- Logs go to stdout in JSON format. The ECS `awslogs` driver picks them up.
+- Logs go to stdout in JSON format. Fly.io captures them and makes them available via `fly logs`.
 
 **Done when.**
-- A single request can be filtered by `requestId` across api and worker logs in CloudWatch Logs Insights.
+- A single request can be filtered by `requestId` across api and worker logs via `fly logs`.
 - The redaction list is enforced; passwords never appear in log lines.
 
 **Reads.** `docs/guardrails/backend/04-error-handling.md` (the redaction list), `docs/guardrails/shared/03-security.md`.
@@ -379,9 +379,11 @@ A thin layer that runs alongside the other layers, not after them.
 
 ## 12. Deploy and infrastructure
 
-Production target is a single public domain. All traffic enters at `https://crewmate.ritaro.dev`. A single Cloudflare Worker serves the Next.js app and reverse-proxies four path prefixes (`/api/*`, `/v1/*`, `/graphql`, `/ws`) to the AWS backend. The AWS backend (NestJS API and BullMQ worker behind an ALB, Postgres on RDS, Redis on ElastiCache, S3, ECR) has no public domain; it is reachable only via the ALB's AWS-issued DNS name, and the Worker is the only intended caller. Single AWS region. Single environment (prod only). Terraform for the AWS side. `apps/web/wrangler.toml` plus Wrangler secrets for the Worker. GitHub Actions runs two deploy workflows on push to `main`, both gated by a manual approval in the `prod` environment.
+Production target is a single public domain. All traffic enters at `https://crewmate.ritaro.dev`. A single Cloudflare Worker serves the Next.js app and reverse-proxies four path prefixes (`/api/*`, `/v1/*`, `/graphql`, `/ws`) to the Fly.io backend. The Fly.io backend (NestJS API and BullMQ worker) is reachable at `https://crewmate-api.fly.dev`; the Worker is the only intended caller. Fly.io provides HTTPS natively — no separate load balancer or ACM certificate is needed. Single environment (prod only). `fly.toml` plus Fly.io secrets for the API. `apps/web/wrangler.toml` plus Wrangler secrets for the Worker. GitHub Actions runs two deploy workflows on push to `main`, both gated by a manual approval in the `prod` environment.
 
-**Code lives in.** `infrastructure/terraform/`, `apps/web/wrangler.toml`, `apps/web/src/worker/proxy.ts`, `docker/api.Dockerfile`, `.github/workflows/deploy-api.yml`, `.github/workflows/deploy-web.yml`.
+> AWS IaC reference code lives in `infrastructure/terraform/` — not applied to any live environment. It is retained as a portfolio artifact documenting the AWS architecture that was superseded by Fly.io.
+
+**Code lives in.** `fly.toml`, `docker/api.Dockerfile`, `apps/web/wrangler.toml`, `apps/web/src/worker/proxy.ts`, `.github/workflows/deploy-api.yml`, `.github/workflows/deploy-web.yml`.
 
 **Depends on.** Every layer above being implemented and tested locally.
 
@@ -393,46 +395,47 @@ Production target is a single public domain. All traffic enters at `https://crew
 |---|---|
 | Next.js web | Cloudflare Workers (via `@opennextjs/cloudflare`) |
 | API proxy logic (`/api/*`, `/v1/*`, `/graphql`, `/ws`) | The same Cloudflare Worker, a small `fetch`-based router |
-| NestJS API | AWS ECS Fargate, behind an ALB with no public domain |
-| BullMQ worker | AWS ECS Fargate, same image as the API |
-| Postgres | AWS RDS, single AZ |
-| Redis | AWS ElastiCache, single node |
-| Object storage | AWS S3 |
-| Container registry | AWS ECR |
-| Load balancer | AWS ALB, AWS-issued DNS only, ingress restricted to Cloudflare IPs |
+| NestJS API | Fly.io (`crewmate-api.fly.dev`), HTTPS native |
+| BullMQ worker | Fly.io, same image as the API (different process command) |
+| Postgres | Fly Postgres (managed by Fly, `DATABASE_URL` auto-set) |
+| Redis | Upstash Redis free tier (`rediss://` URL set as Fly secret) |
+| Container builds | Fly.io remote build from `fly.toml` + `docker/api.Dockerfile` (no separate registry) |
 | DNS, edge cache, WAF, TLS | Cloudflare |
-| Secrets (AWS) | AWS Secrets Manager (DB URL, JWT secrets, webhook signing secret, `CLOUDFLARE_SHARED_SECRET`) |
+| Secrets (API) | Fly.io secrets (`fly secrets set`) — DB URL, JWT secrets, webhook signing secret, `CLOUDFLARE_SHARED_SECRET` |
 | Secrets (Cloudflare) | Wrangler secrets (`BACKEND_ORIGIN`, `CLOUDFLARE_SHARED_SECRET`) |
-| Logs (api + worker) | AWS CloudWatch Logs |
+| Logs (api + worker) | Fly.io log infrastructure (stdout captured, viewable via `fly logs`) |
 | Logs (web) | Cloudflare Workers logs and trace events |
 
-Cookies are same-origin. They are set with `Secure; HttpOnly; SameSite=Lax` and no `Domain=` attribute. No cross-subdomain configuration is needed. CORS is not needed for browser requests to `/api/*` (same origin); the Worker's `fetch` call to the AWS ALB is server-to-server.
+Cookies are same-origin. They are set with `Secure; HttpOnly; SameSite=Lax` and no `Domain=` attribute. No cross-subdomain configuration is needed. CORS is not needed for browser requests to `/api/*` (same origin); the Worker's `fetch` call to the Fly.io backend is server-to-server.
 
-Caller authenticity to the AWS backend is enforced with two complementary mechanisms. First, the Worker injects an `x-cloudflare-secret: <random>` header on every proxied request and a global NestJS guard rejects requests without it. Second, the ALB security group ingress is restricted to Cloudflare's published IP ranges. Defense in depth.
+Caller authenticity to the Fly.io backend is enforced by the Worker injecting an `x-cloudflare-secret: <random>` header on every proxied request; a global NestJS guard rejects requests without it. Defense in depth.
 
-**Worker proxy handler.** A small TypeScript file at `apps/web/src/worker/proxy.ts` is packaged into the Worker bundle by the `@opennextjs/cloudflare` adapter. It matches the four path prefixes (`/api/*`, `/v1/*`, `/graphql`, `/ws`), attaches the `x-cloudflare-secret` header, and forwards the request to `BACKEND_ORIGIN`. WebSocket upgrades on `/ws` are forwarded via Workers' native WebSocket support (the `Upgrade: websocket` header is preserved and the response's `webSocket` is returned with status 101). Every other request falls through to the Next.js handler.
+**Worker proxy handler.** A small TypeScript file at `apps/web/src/worker/proxy.ts` is packaged into the Worker bundle by the `@opennextjs/cloudflare` adapter. It matches the four path prefixes (`/api/*`, `/v1/*`, `/graphql`, `/ws`), attaches the `x-cloudflare-secret` header, and forwards the request to `BACKEND_ORIGIN` (`https://crewmate-api.fly.dev`). WebSocket upgrades on `/ws` are forwarded via Workers' native WebSocket support (the `Upgrade: websocket` header is preserved and the response's `webSocket` is returned with status 101). Every other request falls through to the Next.js handler.
 
-**Terraform modules.**
+**`fly.toml` key settings.**
 
-| Module | Resources |
+| Setting | Value |
 |---|---|
-| `network` | VPC, public + private subnets across 3 AZs, NAT gateway (single), security groups including the Cloudflare IP allowlist on the ALB security group. |
-| `data` | RDS Postgres 17 (single-AZ, cost-optimized for portfolio), ElastiCache Redis 7 (single node), S3 buckets (assets, exports, audit-archive). |
-| `secrets` | AWS Secrets Manager entries (DB URL, JWT secrets, webhook signing secret, `CLOUDFLARE_SHARED_SECRET`), IAM task roles scoped narrowly per service. |
-| `compute` | ECS cluster, api and worker services, task definitions, ALB with target groups, CloudWatch log groups. No ACM certificate for a custom api subdomain. |
+| `app` | `crewmate-api` |
+| `[build] dockerfile` | `docker/api.Dockerfile` |
+| `[deploy] release_command` | `npx prisma migrate deploy` |
+| `[http_service] internal_port` | `3000` |
+| `[http_service] force_https` | `true` |
 
-No `edge` Terraform module. DNS lives at Cloudflare and is configured via the dashboard (one-time) plus `apps/web/wrangler.toml` for the Workers route binding.
+**AWS IaC reference (portfolio artifact).**
+
+The `infrastructure/terraform/` directory contains the original Terraform modules (`network`, `data`, `secrets`, `compute`) that describe the AWS architecture (VPC, RDS, ElastiCache, ECS, ALB). These modules are **not applied to any live environment** and exist as a portfolio reference only.
 
 **Deploy workflows.**
 
 | Workflow | Trigger | What it does |
 |---|---|---|
-| `deploy-api.yml` | Push to `main` after `ci.yml` is green. OIDC trust to AWS. | Builds the api image, tags `:sha-XXXXXXX` and `:latest`, pushes to ECR, runs `prisma migrate deploy` as a one-shot ECS task, rolling-updates the api and worker services, smoke-tests the ALB's AWS-issued URL on `/healthz` and `/readyz`. Gated by the GitHub `prod` environment approval. |
+| `deploy-api.yml` | Push to `main` after `ci.yml` is green. `FLY_API_TOKEN` from GitHub secret. | Runs `flyctl deploy --remote-only` from the repo root, which builds the image on Fly.io, runs `prisma migrate deploy` via the `release_command` in `fly.toml`, and rolls the api and worker machines. Smoke-tests `https://crewmate-api.fly.dev/healthz` and `/readyz`. Gated by the GitHub `prod` environment approval. |
 | `deploy-web.yml` | Push to `main` after `ci.yml` is green. Cloudflare API token from a GitHub secret. | Runs `pnpm --filter @crewmate/web build` then `pnpm --filter @crewmate/web opennextjs-cloudflare`, packaging the proxy handler at `apps/web/src/worker/proxy.ts` into the Worker bundle, then `wrangler deploy` from `apps/web/`. Smoke-tests `https://crewmate.ritaro.dev` returns the login page and `https://crewmate.ritaro.dev/api/healthz` returns 200. Gated by the same `prod` environment approval. |
 
-No long-lived AWS keys committed anywhere. The Cloudflare side uses a scoped API token stored as a GitHub Actions secret.
+No long-lived deploy keys committed anywhere. The Cloudflare side uses a scoped API token; the Fly.io side uses `FLY_API_TOKEN`, both stored as GitHub Actions secrets.
 
-**Done when.** `https://crewmate.ritaro.dev` returns the login page over HTTPS. `https://crewmate.ritaro.dev/api/healthz` returns 200 through the Worker proxy. A direct request to the AWS ALB without the shared secret returns 401. The seeded admin can log in. Subscription updates work across two browsers over `wss://crewmate.ritaro.dev/ws`. A webhook test delivery from `/settings/webhooks` lands in the deliveries log.
+**Done when.** `https://crewmate.ritaro.dev` returns the login page over HTTPS. `https://crewmate.ritaro.dev/api/healthz` returns 200 through the Worker proxy. A direct request to `https://crewmate-api.fly.dev` without the shared secret returns 401. The seeded admin can log in. Subscription updates work across two browsers over `wss://crewmate.ritaro.dev/ws`. A webhook test delivery from `/settings/webhooks` lands in the deliveries log.
 
 **Reads.** `docs/AGENT-SETUP.md` (deploy section), `docs/guardrails/shared/03-security.md`.
 
