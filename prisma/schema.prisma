@@ -1,5 +1,5 @@
 // CrewMate Prisma schema.
-// Source of truth for the data model. See nestjs-ai-guardrails/04-DATA.md
+// Source of truth for the data model. See docs/guardrails/backend/01-data.md
 // for the patterns this schema is designed to support.
 
 generator client {

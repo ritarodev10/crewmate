@@ -43,3 +43,6 @@ prisma/*.db
 # Misc
 .cache/
 .turbo/
+
+# Agent worktrees (see docs/execution/01-agent-workflow.md)
+.worktrees/

@@ -1,4 +1,4 @@
-// System roles. See nestjs-ai-guardrails/09-RBAC.md for the full model.
+// System roles. See docs/guardrails/shared/04-rbac.md for the full model.
 export const SystemRole = {
   SUPER_ADMIN: 'super_admin',
   TENANT_ADMIN: 'tenant_admin',

@@ -6,10 +6,10 @@
   "author": "Riza Rohman <rizarohman@ritaro.dev>",
   "license": "UNLICENSED",
   "engines": {
-    "node": ">=20.11.0",
-    "pnpm": ">=9.0.0"
+    "node": ">=22.0.0",
+    "pnpm": ">=10.0.0"
   },
-  "packageManager": "pnpm@9.12.0",
+  "packageManager": "pnpm@10.15.0",
   "scripts": {
     "dev": "pnpm --parallel --filter \"./apps/*\" dev",
     "build": "pnpm -r --filter \"./apps/*\" --filter \"./packages/*\" build",
@@ -35,5 +35,18 @@
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": ["prettier --write"],
     "*.{json,md,yml,yaml}": ["prettier --write"]
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@apollo/protobufjs",
+      "@nestjs/core",
+      "@prisma/client",
+      "@prisma/engines",
+      "argon2",
+      "esbuild",
+      "msgpackr-extract",
+      "prisma",
+      "unrs-resolver"
+    ]
   }
 }

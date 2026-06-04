@@ -4,6 +4,8 @@ A multi-tenant operations API for coordinating field work across properties and 
 
 > **Status.** v0.1, actively built. See [Roadmap](#roadmap) for what is and is not in scope.
 
+The authoritative spec of what ships in v0.1 lives in [`docs/FEATURES.md`](./docs/FEATURES.md). The roadmap below is a summary; that file is the source of truth.
+
 ---
 
 ## What it does
@@ -61,9 +63,9 @@ Three flows worth calling out.
 
 | Layer | Choice | Why |
 |---|---|---|
-| API framework | NestJS 10 | Opinionated structure, DI, batteries for guards, pipes, queues, GraphQL |
+| API framework | NestJS 11 | Opinionated structure, DI, batteries for guards, pipes, queues, GraphQL |
 | Language | TypeScript (strict) | Catches the bugs the runtime will not |
-| DB | PostgreSQL 16 | Boring, sharp, well-understood |
+| DB | PostgreSQL 17 | Boring, sharp, well-understood |
 | ORM | Prisma | Type-safe, migrations included, fast iteration |
 | Cache and queues | Redis + BullMQ | Same primitive for both, retries and dead-letters out of the box |
 | Auth | Passport JWT (access + refresh) | Stateless, easy to test, easy to rotate |
@@ -73,42 +75,50 @@ Three flows worth calling out.
 | Server state (REST) | TanStack Query (web) | Caching, polling, optimistic updates for the non-GraphQL surface (file uploads, third-party calls, REST-only endpoints) |
 | Validation | `class-validator` + `class-transformer` | DTOs become the contract |
 | Tests | Jest + Supertest | Unit, integration, and e2e in one runner |
-| Web | Next.js 14 (App Router) + Tailwind | Server components for dashboards, fast iteration |
+| Web | Next.js 15 (App Router) + Tailwind 4 | Server components for dashboards, fast iteration |
 | UI components | shadcn/ui (Radix primitives) | Owned in-repo, accessible by default, no design lock-in |
 | Client state | Zustand | Small footprint for ephemeral UI where SSR and the Apollo cache do not fit (filters, drag selection, optimistic toggles) |
 | Animation | Motion (formerly Framer Motion) | Declarative React animation, consumes the `--motion-*` tokens, honors `useReducedMotion` |
 | Logging | pino (structured JSON) | Plays well with CloudWatch and any log aggregator |
-| Tracing | OpenTelemetry (HTTP + Prisma + BullMQ) | Vendor-neutral, exports to CloudWatch, Honeycomb, or Tempo |
+| Email | Resend | Transactional email in production via Resend; MailHog locally |
 | Containerization | Docker + docker-compose | One command to bring the world up |
 | CI | GitHub Actions | Lint, typecheck, test, build, on every PR |
 | Package manager | pnpm (workspaces) | Fast, strict, monorepo-native |
+| Web deploy | Cloudflare Workers via `@opennextjs/cloudflare` | Edge runtime for the Next.js app; the same Worker also reverse-proxies `/api/*`, `/v1/*`, `/graphql`, and `/ws` to the AWS backend; pushed via `wrangler` from a GitHub Actions workflow |
+| API deploy | AWS ECS Fargate behind an ALB | Long-running container for NestJS and the BullMQ worker (same image, different command); no public domain, reachable only through the Cloudflare Worker proxy |
 
 ## Project structure
 
 ```
 crewmate/
 ├─ apps/
-│  ├─ api/              # NestJS API
-│  └─ web/              # Next.js dashboard + worker view
+│  ├─ api/                       # NestJS API + BullMQ worker (same image)
+│  └─ web/                       # Next.js dashboard + worker view
+│     ├─ wrangler.toml           # Cloudflare Workers config for the web
+│     └─ src/worker/proxy.ts     # Reverse-proxy handler in the Worker (/api/*, /v1/*, /graphql, /ws → AWS backend)
 ├─ packages/
-│  ├─ contracts/        # Shared DTOs and GraphQL types
-│  └─ ui/               # Shared React components and tokens
-├─ nestjs-ai-guardrails/  # Architecture, conventions, and AI guardrails
-├─ prisma/              # Schema, migrations, seed
-├─ docker/              # Local infra (postgres, redis, mailhog)
+│  ├─ contracts/                 # Shared DTOs and GraphQL types
+│  └─ ui/                        # Shared React components and tokens
+├─ docs/guardrails/              # Architecture, conventions, and AI guardrails
+├─ prisma/                       # Schema, migrations, seed
+├─ docker/                       # Local infra (postgres, redis, mailhog)
 ├─ docker-compose.yml
-├─ .github/workflows/   # CI
+├─ infrastructure/terraform/     # AWS IaC (network, data, compute, secrets)
+├─ .github/workflows/
+│  ├─ ci.yml                     # Lint, typecheck, test, build on every PR
+│  ├─ deploy-api.yml             # Build, push to ECR, roll api + worker on ECS
+│  └─ deploy-web.yml             # Build Worker bundle, deploy via wrangler
 └─ README.md
 ```
 
-The API lives under `apps/api/src`, organized by feature module (`auth`, `operators`, `properties`, `workers`, `jobs`, `schedules`, `webhooks`). Every feature follows the same shape, see [`nestjs-ai-guardrails/01-ARCHITECTURE.md`](./nestjs-ai-guardrails/01-ARCHITECTURE.md).
+The API lives under `apps/api/src`, organized by feature module (`auth`, `operators`, `properties`, `workers`, `jobs`, `schedules`, `webhooks`). Every feature follows the same shape, see [`docs/guardrails/shared/00-architecture.md`](./docs/guardrails/shared/00-architecture.md).
 
 ## Quickstart
 
 Prereqs.
 
-- Node 20+
-- pnpm 9+
+- Node 22 LTS
+- pnpm 10+
 - Docker (for Postgres and Redis)
 
 ```bash
@@ -167,59 +177,69 @@ The seed creates one operator (`Brookline Property Co.`), three properties, four
 
 ## Testing
 
-- Unit tests for every service (`*.spec.ts`), colocated.
-- Integration tests for repositories (`*.int-spec.ts`) against a real Postgres in CI.
-- e2e tests for every endpoint (`*.e2e-spec.ts`) exercising guards, pipes, and filters.
-- Coverage floor 75% overall, 85% on services. CI fails below that.
+A light testing layer focused on the most interesting code, not a coverage floor.
 
-See [`nestjs-ai-guardrails/07-TESTING.md`](./nestjs-ai-guardrails/07-TESTING.md) for the patterns.
+- Critical-path unit tests (`*.spec.ts`), colocated. Job state machine, RBAC policy evaluator, refresh-token rotation with replay detection, the signed-webhook payload signer.
+- One Supertest integration test that walks the happy worker path end to end against a real Postgres + Redis from docker-compose.
+- CI runs both on every PR. No coverage gate, no frontend e2e.
+
+See [`docs/guardrails/backend/03-testing.md`](./docs/guardrails/backend/03-testing.md) for the patterns.
 
 ## Observability
 
-Logs are structured JSON via pino, with request ID, tenant ID, and actor ID on every line. Traces go through OpenTelemetry, instrumented at the HTTP, Prisma, and BullMQ layers, and ship to any OTLP backend (CloudWatch on AWS by default). Metrics are exposed at `/metrics` for Prometheus or the CloudWatch agent to scrape.
+Logs are structured JSON via pino, with request ID, tenant ID, and actor ID on every line. Logs ship to CloudWatch in production via the ECS `awslogs` driver. No OpenTelemetry tracing, no Sentry, no PostHog in v0.1.
 
-Permission decisions, webhook attempts, and queue job state share the same correlation ID, so a single request can be followed from ingress through to webhook delivery in one query.
+Permission decisions, webhook attempts, and queue job state share the same correlation ID, so a single request can be followed from ingress through to webhook delivery in one log query.
 
 ## AI-assisted development
 
-This repository is built with AI pair-programming as a deliberate part of the workflow. The `nestjs-ai-guardrails/` folder defines the architecture, conventions, and quality bar that every change must follow. Every AI session starts by attaching that folder as context, and every PR is held to the same review standard as one written by hand.
+This repository is built with AI pair-programming as a deliberate part of the workflow. The `docs/guardrails/` folder defines the architecture, conventions, and quality bar that every change must follow. Every AI session starts by attaching that folder as context, and every PR is held to the same review standard as one written by hand.
 
-The point of the guardrails is not to prove that no AI was involved. It is to prove that the architecture, security model, and code quality were decided by a human, in writing, before any code was generated. See [`nestjs-ai-guardrails/AGENT.md`](./nestjs-ai-guardrails/AGENT.md) for how the AI is constrained.
+The point of the guardrails is not to prove that no AI was involved. It is to prove that the architecture, security model, and code quality were decided by a human, in writing, before any code was generated. See [`docs/guardrails/shared/AGENT.md`](./docs/guardrails/shared/AGENT.md) for how the AI is constrained.
 
 ## Roadmap
 
 **In v0.1 (this build).**
 
-- Multi-tenant auth with a four-layer authorization model. Tenancy, hierarchical roles (`super_admin → tenant_admin → coordinator → worker`), per-grant resource scoping (tenant, region, or property list), and policy-based conditions evaluated at the request, the service, and the query layer. See [`nestjs-ai-guardrails/09-RBAC.md`](./nestjs-ai-guardrails/09-RBAC.md).
+- Multi-tenant auth with a four-layer authorization model. Tenancy, built-in hierarchical roles (`super_admin → tenant_admin → coordinator → worker`), custom tenant-defined roles, per-grant resource scoping (tenant, region, or property list), and policy-based conditions evaluated at the request, service, and query layer. See [`docs/guardrails/shared/04-rbac.md`](./docs/guardrails/shared/04-rbac.md).
 - CRUD for operators, properties, workers, jobs, schedules.
 - Job state machine (`Scheduled → En Route → In Progress → Completed → Verified`) where transitions are gated by both the state machine and the actor's role.
-- Real-time dispatch board over WebSocket.
-- Webhook spine with signed payloads, retries, and a delivery log.
-- Permission audit log. Every authorization decision (allow and deny) is recorded.
-- Dashboard (Next.js) and worker mobile view.
-- Seed data, e2e tests, docker-compose, CI.
+- Real-time dispatch board over WebSocket, job detail drawer, optimistic UI on transitions.
+- Worker mobile-responsive view (`/today`) with one-tap status transitions.
+- Webhook spine with signed payloads, retries, a delivery log UI, and endpoint config UI.
+- Permission audit log with a filterable UI and CSV export.
+- Email + password auth, 2FA via TOTP, refresh-token rotation with replay detection, invitation and password-reset flows.
+- Transactional email via Resend in production (MailHog locally).
+- Analytics overview page, team management with custom-role builder, settings surface.
+- Single-domain deploy. Everything public lives at `crewmate.ritaro.dev`. One Cloudflare Worker serves the Next.js app (via `@opennextjs/cloudflare`) and reverse-proxies `/api/*`, `/v1/*`, `/graphql`, and `/ws` to the AWS backend. NestJS API and BullMQ worker run on AWS ECS Fargate behind an ALB that has no public domain. RDS, ElastiCache, S3, ECR sit behind the api. Cloudflare runs the authoritative DNS, edge CDN, and TLS. Terraform IaC for AWS, `apps/web/wrangler.toml` plus Wrangler secrets for the Worker. Two GitHub Actions workflows (OIDC to AWS, Cloudflare API token for Workers).
+- Critical-path unit tests plus one Supertest integration test. CI runs both on every PR.
 
 **Intentionally out of scope for v0.1.**
 
-- Custom tenant-defined roles, time-bound role grants, impersonation, and field-level masking. The RBAC model is designed for them, the implementation is deferred to v0.2. See the "what is intentionally not in v0.1" section of [`09-RBAC.md`](./nestjs-ai-guardrails/09-RBAC.md).
-- Billing, invoicing, and payments.
-- Email and SMS providers (delivery is stubbed behind a webhook URL).
-- Native mobile apps. The worker view is a responsive web view.
-- Multi-region deployment, blue-green, geo replication.
-- Audit log surfacing in the UI (recorded but not yet rendered).
-- Bulk import and export.
+- Impersonation, time-bound role grants, field-level masking (RBAC model supports them, surfaces deferred to v0.2).
+- Magic-link auth, SSO (SAML / OIDC).
+- Bulk import and export beyond the audit-log CSV.
+- PWA, service worker, offline queue, push notifications, install prompt. The worker view is a responsive web view.
+- Inbound webhooks, webhook health metrics dashboard.
+- SMS (Twilio), in-app notification center beyond toasts.
+- Custom analytics dashboards, drilldowns, scheduled reports.
+- OpenTelemetry tracing, Sentry, PostHog, status page. Pino plus CloudWatch is the v0.1 observability surface.
+- Multi-environment (no staging), multi-region, blue-green, disaster-recovery runbook.
+- Billing, invoicing, payments (no Stripe). Marketing site. Public API documentation portal.
+- Coverage gates, Playwright e2e, performance regression tests, visual regression.
+- Dark mode, theming, internationalization, RTL.
 
-Each of these has a known shape and is one or two phases of work, not a research project. Tracked in `docs/roadmap.md`.
+The full out-of-scope list with reasons is in [`docs/FEATURES.md`](./docs/FEATURES.md).
 
 ## Deployment notes
 
-The production target is AWS. The default path uses ECS Fargate for the API and the BullMQ worker (same image, different command), RDS for Postgres, ElastiCache for Redis, S3 for any object storage, SES for transactional email, and CloudWatch for structured logs, metrics, and traces. The API is stateless, the queue worker is a separate container with the same image, and migrations run as an init container before the API starts.
+The production target is a single public domain. Everything answers at `https://crewmate.ritaro.dev`. One Cloudflare Worker serves the Next.js web app via the `@opennextjs/cloudflare` adapter and reverse-proxies four path prefixes (`/api/*`, `/v1/*`, `/graphql`, `/ws`) to the AWS backend. The NestJS API and the BullMQ worker share a Docker image and run on AWS ECS Fargate behind an ALB with no public domain. RDS Postgres 17 (single AZ), ElastiCache Redis 7, and S3 sit behind the api. Cloudflare runs the authoritative DNS, the edge CDN, the WAF, and the TLS via Universal SSL. There is no CloudFront and no ACM certificate for an api subdomain. Cookies are same-origin (no `Domain=` attribute). Caller authenticity to the AWS backend is enforced two ways: a shared `x-cloudflare-secret` header that the Worker injects and a NestJS guard checks, plus an ALB security group ingress restricted to Cloudflare's IP ranges.
 
-An EKS / Kubernetes path is documented as an alternative (Helm chart sketched in `docs/deployment.md`), with App Runner and Fly.io listed as cheaper-to-operate fallbacks and the trade-offs spelled out.
+Infrastructure is Terraform under `infrastructure/terraform/` for the AWS side and `apps/web/wrangler.toml` plus Wrangler secrets for the Worker side. Deploys run from two GitHub Actions workflows. `deploy-api.yml` uses OIDC to AWS and rolls the api and worker ECS services after running migrations. `deploy-web.yml` uses a scoped Cloudflare API token, builds the Next.js Worker bundle along with the proxy handler at `apps/web/src/worker/proxy.ts`, and ships via `wrangler deploy`. Both are gated by a manual approval on the GitHub `prod` environment. Single region, single AZ, no staging tier. See [`docs/FEATURES.md`](./docs/FEATURES.md) F-120 through F-123 for the full deployment shape.
 
 ## About this project
 
-CrewMate is a portfolio build that mirrors a real operational domain. It exists to demonstrate full-stack work end to end. Architecture, API design, data modeling, real-time delivery, design taste in the UI, testing discipline, and a disciplined AI-assisted workflow. The code is meant to be read, not just run. Reviewers are encouraged to start with the `nestjs-ai-guardrails/` folder, then open one feature module (`jobs/` is the densest) to see how the rules play out in practice.
+CrewMate is a portfolio build that mirrors a real operational domain. It exists to demonstrate full-stack work end to end. Architecture, API design, data modeling, real-time delivery, design taste in the UI, testing discipline, and a disciplined AI-assisted workflow. The code is meant to be read, not just run. Reviewers are encouraged to start with [`docs/FEATURES.md`](./docs/FEATURES.md) for the full ship list, then the `docs/guardrails/` folder for the rules, then open one feature module (`jobs/` is the densest) to see how those rules play out in practice.
 
 Questions, feedback, or job offers welcome.
 

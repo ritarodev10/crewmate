@@ -1,6 +1,6 @@
 // CrewMate seed script.
 // Creates one operator with realistic demo data so a reviewer can `pnpm db:seed`
-// and immediately see the app populated. See nestjs-ai-guardrails/04-DATA.md.
+// and immediately see the app populated. See docs/guardrails/backend/01-data.md.
 
 import { PrismaClient } from '@prisma/client';
 
