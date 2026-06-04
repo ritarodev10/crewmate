@@ -22,6 +22,16 @@ locals {
   azs = ["us-east-1a", "us-east-1b"]
 }
 
+# Generate the RDS master password at root scope.
+# Placing it here avoids a circular dependency:
+# data module needs the password to set aws_db_instance.password,
+# secrets module needs the password to construct the postgresql:// URL.
+resource "random_password" "db_password" {
+  length           = 32
+  special          = true
+  override_special = "!#$%&*()-_=+[]{}<>:?"
+}
+
 # ---------------------------------------------------------------------------
 # Module: network
 # Provisions VPC, subnets, NAT gateway, and security groups.
@@ -43,6 +53,7 @@ module "data" {
   private_subnet_ids = module.network.private_subnet_ids
   rds_sg_id          = module.network.rds_sg_id
   redis_sg_id        = module.network.redis_sg_id
+  db_password        = random_password.db_password.result
 }
 
 # ---------------------------------------------------------------------------
@@ -50,13 +61,14 @@ module "data" {
 # Provisions Secrets Manager entries, ECS IAM roles, and GitHub OIDC.
 # ---------------------------------------------------------------------------
 module "secrets" {
-  source              = "./secrets"
-  environment         = var.environment
-  account_id          = data.aws_caller_identity.current.account_id
-  aws_region          = var.aws_region
-  db_endpoint         = module.data.db_endpoint
-  redis_endpoint      = module.data.redis_endpoint
-  assets_bucket_name  = module.data.assets_bucket_name
+  source             = "./secrets"
+  environment        = var.environment
+  account_id         = data.aws_caller_identity.current.account_id
+  aws_region         = var.aws_region
+  db_endpoint        = module.data.db_endpoint
+  redis_endpoint     = module.data.redis_endpoint
+  assets_bucket_name = module.data.assets_bucket_name
+  db_password        = random_password.db_password.result
 }
 
 # ---------------------------------------------------------------------------
