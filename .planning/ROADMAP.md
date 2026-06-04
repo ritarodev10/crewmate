@@ -29,11 +29,11 @@
   3. `https://crewmate.ritaro.dev` returns the placeholder login page through the Cloudflare Worker
   4. `curl https://crewmate.ritaro.dev/api/healthz` returns 200 through the Worker proxy
   5. A direct request to the AWS ALB URL without `x-cloudflare-secret` returns 401
-**Plans:** 2/5 plans executed
+**Plans:** 3/5 plans executed
 **Plan list:**
-- [ ] 01-PLAN-10-monorepo.md — Version alignment (NestJS 10→11, Next 14→15, Tailwind 3→4, docker-compose postgres 16→17, seed)
-- [ ] 01-PLAN-11-api-skeleton.md — NestJS CoreModule + HealthModule + CloudflareSecretGuard
-- [ ] 01-PLAN-12-web-skeleton.md — Placeholder login page + Worker proxy + wrangler.toml + Dockerfile
+- [x] 01-PLAN-10-monorepo.md — Version alignment (NestJS 10→11, Next 14→15, Tailwind 3→4, docker-compose postgres 16→17, seed)
+- [x] 01-PLAN-11-api-skeleton.md — NestJS CoreModule + HealthModule + CloudflareSecretGuard
+- [x] 01-PLAN-12-web-skeleton.md — Placeholder login page + Worker proxy + wrangler.toml + Dockerfile
 - [ ] 01-PLAN-13-ci.md — GitHub Actions: ci.yml + deploy-api.yml + deploy-web.yml
 - [ ] 01-PLAN-14-terraform.md — All 4 Terraform modules + manual apply + Phase 1 gate
 **Execution:**
@@ -210,9 +210,8 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 2/5 | In Progress|  |
+| 1. Foundation | 3/5 | In Progress|  |
 | 2. UI Screens | 0/0 | Not started | — |
 | 3. Backend API | 0/0 | Not started | — |
 | 4. Integration | 0/0 | Not started | — |
 | 5. Polish | 0/0 | Not started | — |
-
