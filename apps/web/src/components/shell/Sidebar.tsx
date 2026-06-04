@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   Columns3,
   Calendar,
+  Building2,
   Webhook,
   Settings2,
   ChevronLeft,
@@ -23,8 +24,9 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/dispatch', label: 'Dispatch', icon: Columns3 },
+  { href: '/dispatch', label: 'Dispatch board', icon: Columns3 },
   { href: '/schedule', label: 'Schedule', icon: Calendar },
+  { href: '/properties', label: 'Properties', icon: Building2 },
   { href: '/webhooks', label: 'Webhooks', icon: Webhook },
   { href: '/settings/team', label: 'Settings', icon: Settings2 },
 ];
@@ -53,7 +55,7 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        'fixed left-0 top-0 h-screen bg-brand flex flex-col z-[10] transition-[width] duration-200',
+        'fixed left-0 top-0 h-dvh bg-brand flex flex-col z-[10] transition-[width] duration-200',
         width,
       )}
     >

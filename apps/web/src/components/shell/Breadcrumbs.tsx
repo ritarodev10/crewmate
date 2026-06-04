@@ -4,8 +4,9 @@ import { ChevronRight } from 'lucide-react';
 
 const ROUTE_LABELS: Record<string, string> = {
   '/dashboard': 'Dashboard',
-  '/dispatch': 'Dispatch',
+  '/dispatch': 'Dispatch board',
   '/schedule': 'Schedule',
+  '/properties': 'Properties',
   '/webhooks': 'Webhooks',
   '/settings/team': 'Settings / Team',
   '/settings/team/roles': 'Settings / Roles',
