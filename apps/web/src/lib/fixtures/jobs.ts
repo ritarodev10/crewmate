@@ -1,0 +1,242 @@
+/**
+ * Fixture jobs — 15 entries across all statuses.
+ * Phase 2 only: replace with @crewmate/contracts types in Phase 3.
+ */
+
+export type JobStatus = 'scheduled' | 'en_route' | 'in_progress' | 'completed' | 'cancelled';
+export type JobPriority = 'normal' | 'high';
+
+export type Job = {
+  id: string;
+  title: string;
+  status: JobStatus;
+  priority: JobPriority;
+  propertyId: string;
+  propertyName: string;
+  workerId: string | null;
+  workerName: string | null;
+  scheduledStart: string; // ISO 8601
+  scheduledEnd: string;   // ISO 8601
+  notes: string | null;
+  operatorId: string;
+};
+
+const OPERATOR_ID = 'op-brookline-001';
+
+export const FIXTURE_JOBS: Job[] = [
+  // ── Scheduled (4) ──────────────────────────────────────────────────────────
+  {
+    id: 'job-001',
+    title: 'HVAC filter replacement',
+    status: 'scheduled',
+    priority: 'normal',
+    propertyId: 'prop-001',
+    propertyName: 'Brookline Heights',
+    workerId: 'worker-001',
+    workerName: 'Marcus Webb',
+    scheduledStart: '2026-06-05T09:00:00Z',
+    scheduledEnd: '2026-06-05T10:30:00Z',
+    notes: 'Access code 4421. Use freight elevator.',
+    operatorId: OPERATOR_ID,
+  },
+  {
+    id: 'job-002',
+    title: 'Pool deck power wash',
+    status: 'scheduled',
+    priority: 'normal',
+    propertyId: 'prop-002',
+    propertyName: 'Harborview Residences',
+    workerId: 'worker-002',
+    workerName: 'Priya Nair',
+    scheduledStart: '2026-06-05T11:00:00Z',
+    scheduledEnd: '2026-06-05T13:00:00Z',
+    notes: null,
+    operatorId: OPERATOR_ID,
+  },
+  {
+    id: 'job-003',
+    title: 'Lobby deep clean',
+    status: 'scheduled',
+    priority: 'high',
+    propertyId: 'prop-003',
+    propertyName: 'The Aldgate',
+    workerId: null,
+    workerName: null,
+    scheduledStart: '2026-06-06T08:00:00Z',
+    scheduledEnd: '2026-06-06T11:00:00Z',
+    notes: 'Property manager requested before 9am start. Confirm day before.',
+    operatorId: OPERATOR_ID,
+  },
+  {
+    id: 'job-004',
+    title: 'Elevator inspection prep',
+    status: 'scheduled',
+    priority: 'normal',
+    propertyId: 'prop-004',
+    propertyName: 'Maple Court Hospitality',
+    workerId: 'worker-003',
+    workerName: 'Olu Adeleke',
+    scheduledStart: '2026-06-06T14:00:00Z',
+    scheduledEnd: '2026-06-06T15:30:00Z',
+    notes: null,
+    operatorId: OPERATOR_ID,
+  },
+  // ── En Route (3) ───────────────────────────────────────────────────────────
+  {
+    id: 'job-005',
+    title: 'Roof drain inspection',
+    status: 'en_route',
+    priority: 'normal',
+    propertyId: 'prop-001',
+    propertyName: 'Brookline Heights',
+    workerId: 'worker-001',
+    workerName: 'Marcus Webb',
+    scheduledStart: '2026-06-04T07:30:00Z',
+    scheduledEnd: '2026-06-04T09:00:00Z',
+    notes: null,
+    operatorId: OPERATOR_ID,
+  },
+  {
+    id: 'job-006',
+    title: 'Boiler room safety check',
+    status: 'en_route',
+    priority: 'high',
+    propertyId: 'prop-005',
+    propertyName: 'Northgate Commercial',
+    workerId: 'worker-004',
+    workerName: 'Sofia Larsson',
+    scheduledStart: '2026-06-04T08:00:00Z',
+    scheduledEnd: '2026-06-04T09:30:00Z',
+    notes: 'Annual compliance check. Bring certification binder.',
+    operatorId: OPERATOR_ID,
+  },
+  {
+    id: 'job-007',
+    title: 'Parking garage lighting repair',
+    status: 'en_route',
+    priority: 'normal',
+    propertyId: 'prop-002',
+    propertyName: 'Harborview Residences',
+    workerId: 'worker-002',
+    workerName: 'Priya Nair',
+    scheduledStart: '2026-06-04T08:30:00Z',
+    scheduledEnd: '2026-06-04T10:00:00Z',
+    notes: null,
+    operatorId: OPERATOR_ID,
+  },
+  // ── In Progress (4) ────────────────────────────────────────────────────────
+  {
+    id: 'job-008',
+    title: 'Unit 4B bathroom tile regrout',
+    status: 'in_progress',
+    priority: 'normal',
+    propertyId: 'prop-001',
+    propertyName: 'Brookline Heights',
+    workerId: 'worker-003',
+    workerName: 'Olu Adeleke',
+    scheduledStart: '2026-06-04T06:00:00Z',
+    scheduledEnd: '2026-06-04T09:00:00Z',
+    notes: 'Resident traveling — leave area clean.',
+    operatorId: OPERATOR_ID,
+  },
+  {
+    id: 'job-009',
+    title: 'Conference room AV setup',
+    status: 'in_progress',
+    priority: 'normal',
+    propertyId: 'prop-005',
+    propertyName: 'Northgate Commercial',
+    workerId: 'worker-004',
+    workerName: 'Sofia Larsson',
+    scheduledStart: '2026-06-04T07:00:00Z',
+    scheduledEnd: '2026-06-04T09:00:00Z',
+    notes: null,
+    operatorId: OPERATOR_ID,
+  },
+  {
+    id: 'job-010',
+    title: 'Exterior window cleaning — west facade',
+    status: 'in_progress',
+    priority: 'normal',
+    propertyId: 'prop-003',
+    propertyName: 'The Aldgate',
+    workerId: 'worker-005',
+    workerName: 'Jamie Rivera',
+    scheduledStart: '2026-06-04T07:00:00Z',
+    scheduledEnd: '2026-06-04T12:00:00Z',
+    notes: null,
+    operatorId: OPERATOR_ID,
+  },
+  {
+    id: 'job-011',
+    title: 'Fitness room equipment service',
+    status: 'in_progress',
+    priority: 'high',
+    propertyId: 'prop-004',
+    propertyName: 'Maple Court Hospitality',
+    workerId: 'worker-001',
+    workerName: 'Marcus Webb',
+    scheduledStart: '2026-06-04T06:30:00Z',
+    scheduledEnd: '2026-06-04T09:30:00Z',
+    notes: 'Treadmill belt slip reported by guests.',
+    operatorId: OPERATOR_ID,
+  },
+  // ── Completed (3) ──────────────────────────────────────────────────────────
+  {
+    id: 'job-012',
+    title: 'Main lobby carpet steam clean',
+    status: 'completed',
+    priority: 'normal',
+    propertyId: 'prop-004',
+    propertyName: 'Maple Court Hospitality',
+    workerId: 'worker-005',
+    workerName: 'Jamie Rivera',
+    scheduledStart: '2026-06-03T06:00:00Z',
+    scheduledEnd: '2026-06-03T08:00:00Z',
+    notes: null,
+    operatorId: OPERATOR_ID,
+  },
+  {
+    id: 'job-013',
+    title: 'Fire suppression system test',
+    status: 'completed',
+    priority: 'high',
+    propertyId: 'prop-005',
+    propertyName: 'Northgate Commercial',
+    workerId: 'worker-002',
+    workerName: 'Priya Nair',
+    scheduledStart: '2026-06-03T09:00:00Z',
+    scheduledEnd: '2026-06-03T11:00:00Z',
+    notes: 'Annual test. Report filed with building manager.',
+    operatorId: OPERATOR_ID,
+  },
+  {
+    id: 'job-014',
+    title: 'Roof membrane patch — section C',
+    status: 'completed',
+    priority: 'normal',
+    propertyId: 'prop-001',
+    propertyName: 'Brookline Heights',
+    workerId: 'worker-003',
+    workerName: 'Olu Adeleke',
+    scheduledStart: '2026-06-03T13:00:00Z',
+    scheduledEnd: '2026-06-03T15:30:00Z',
+    notes: null,
+    operatorId: OPERATOR_ID,
+  },
+  // ── Cancelled (1) ──────────────────────────────────────────────────────────
+  {
+    id: 'job-015',
+    title: 'Courtyard landscaping trim',
+    status: 'cancelled',
+    priority: 'normal',
+    propertyId: 'prop-002',
+    propertyName: 'Harborview Residences',
+    workerId: null,
+    workerName: null,
+    scheduledStart: '2026-06-04T10:00:00Z',
+    scheduledEnd: '2026-06-04T12:00:00Z',
+    notes: 'Cancelled by property manager — rescheduled for next week.',
+    operatorId: OPERATOR_ID,
+  },
+];
