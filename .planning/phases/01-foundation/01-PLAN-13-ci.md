@@ -194,7 +194,7 @@ GitHub Secrets referenced (these must be set by the user before deploy workflows
   <read_first>
     - .planning/phases/01-foundation/01-CONTEXT.md (GitHub Actions section, lines 201-232)
     - .planning/phases/01-foundation/01-RESEARCH.md (CI service containers section)
-    - apps/api/package.json (verify test and test:e2e script names)
+    - apps/api/package.json (verify test and test:e2e script names; verify db:migrate:deploy script exists)
     - package.json at root (verify lint, typecheck, test script names)
   </read_first>
   <files>.github/workflows/ci.yml</files>
@@ -294,11 +294,14 @@ GitHub Secrets referenced (these must be set by the user before deploy workflows
           - uses: pnpm/action-setup@v4 (same as above)
           - uses: actions/setup-node@v4 (same as above)
           - run: pnpm install --frozen-lockfile
-          - run: pnpm --filter @crewmate/api db:migrate
+          - run: pnpm --filter @crewmate/api db:migrate:deploy
           - run: pnpm test:e2e
 
-    NOTE: test:e2e must run `db:migrate` first to create the schema in the CI postgres instance.
-    The e2e tests connect to real postgres + redis, so the schema must exist.
+    NOTE: The e2e job runs `db:migrate:deploy` (maps to `prisma migrate deploy`) — NOT `db:migrate`
+    (which maps to `prisma migrate dev`). `prisma migrate dev` is interactive and will hang in CI.
+    `prisma migrate deploy` is non-interactive and designed for CI/CD environments. Verify the
+    `db:migrate:deploy` script exists in apps/api/package.json before writing the workflow; if it
+    is missing, the executor for plan 11 must add it.
 
     VALIDATION: all env var values in the ci.yml must be >= 32 characters for Zod validation:
     - ci-test-access-secret-at-least-32-characters = 42 chars ✓
@@ -317,6 +320,9 @@ GitHub Secrets referenced (these must be set by the user before deploy workflows
       grep "pnpm test" .github/workflows/ci.yml
       grep "pnpm test:e2e" .github/workflows/ci.yml
       grep "pnpm/action-setup" .github/workflows/ci.yml
+      # e2e job uses non-interactive migrate deploy (not interactive migrate dev)
+      grep "db:migrate:deploy" .github/workflows/ci.yml
+      ! grep "db:migrate[^:]" .github/workflows/ci.yml
       # No long-lived AWS keys
       ! grep "AWS_ACCESS_KEY_ID" .github/workflows/ci.yml
       ! grep "AWS_SECRET_ACCESS_KEY" .github/workflows/ci.yml
@@ -333,9 +339,10 @@ GitHub Secrets referenced (these must be set by the user before deploy workflows
     - ci.yml does NOT contain AWS_ACCESS_KEY_ID or AWS_SECRET_ACCESS_KEY
     - CLOUDFLARE_SHARED_SECRET env var value in ci.yml is exactly 39+ characters (Zod min 32)
     - Python YAML parse of ci.yml exits 0 (valid YAML syntax)
-    - e2e job includes pnpm db:migrate step before pnpm test:e2e
+    - e2e job uses "pnpm --filter @crewmate/api db:migrate:deploy" (non-interactive prisma migrate deploy)
+    - e2e job does NOT use "db:migrate" without the ":deploy" suffix (interactive prisma migrate dev would hang)
   </acceptance_criteria>
-  <done>CI workflow with 4 jobs, Postgres 17 + Redis 7 service containers, no stored AWS keys.</done>
+  <done>CI workflow with 4 jobs, Postgres 17 + Redis 7 service containers, no stored AWS keys, non-interactive migrate deploy in e2e.</done>
 </task>
 
 <task type="auto" id="13-T2">
@@ -528,6 +535,7 @@ After both tasks complete:
   grep "postgres:17-alpine" .github/workflows/ci.yml
   grep "environment: prod" .github/workflows/deploy-api.yml
   grep "environment: prod" .github/workflows/deploy-web.yml
+  grep "db:migrate:deploy" .github/workflows/ci.yml
 </verification>
 
 <success_criteria>
@@ -537,6 +545,7 @@ After both tasks complete:
 4. Both deploy workflows gate on environment: prod (manual approval)
 5. deploy-api.yml includes OIDC credential step with id-token: write permission
 6. deploy-web.yml deploys via wrangler using CLOUDFLARE_API_TOKEN secret
+7. e2e job uses db:migrate:deploy (non-interactive prisma migrate deploy, not prisma migrate dev)
 </success_criteria>
 
 <output>

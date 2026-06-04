@@ -7,6 +7,8 @@ depends_on: []
 files_modified:
   - apps/api/package.json
   - apps/web/package.json
+  - apps/api/eslint.config.mjs
+  - apps/web/eslint.config.mjs
   - docker-compose.yml
   - prisma/seed.ts
   - apps/web/next.config.ts
@@ -14,7 +16,7 @@ files_modified:
   - apps/web/src/app/globals.css
 autonomous: true
 requirements:
-  - INFRA-06
+  - INFRA-02
 
 new_dependencies:
   - name: "@nestjs/terminus"
@@ -30,6 +32,7 @@ must_haves:
     - "pnpm --filter @crewmate/web typecheck exits 0 after the version bump"
     - "docker-compose.yml references postgres:17-alpine, not postgres:16-alpine"
     - "apps/web runs Tailwind 4 CSS-native setup (no tailwind.config.js, @import in globals.css)"
+    - "pnpm lint exits non-zero on a file with a TypeScript error (ESLint configs enforce rules)"
   artifacts:
     - path: "apps/api/package.json"
       provides: "@nestjs/* ^11 deps, @nestjs/terminus ^11"
@@ -37,6 +40,12 @@ must_haves:
     - path: "apps/web/package.json"
       provides: "next ^15, react ^19, tailwindcss ^4, @apollo/client ^4, motion"
       contains: '"next": "^15'
+    - path: "apps/api/eslint.config.mjs"
+      provides: "ESLint flat config for NestJS/TypeScript package"
+      contains: "@typescript-eslint"
+    - path: "apps/web/eslint.config.mjs"
+      provides: "ESLint flat config for Next.js package"
+      contains: "eslint-config-next"
     - path: "docker-compose.yml"
       provides: "postgres:17-alpine service"
       contains: "postgres:17-alpine"
@@ -58,6 +67,14 @@ must_haves:
       to: "@opennextjs/cloudflare"
       via: "initOpenNextCloudflareForDev import"
       pattern: "initOpenNextCloudflareForDev"
+    - from: "apps/api/eslint.config.mjs"
+      to: "@typescript-eslint/eslint-plugin"
+      via: "ESLint flat config plugin reference"
+      pattern: "@typescript-eslint"
+    - from: "apps/web/eslint.config.mjs"
+      to: "eslint-config-next"
+      via: "ESLint flat config extends"
+      pattern: "eslint-config-next"
 ---
 
 <objective>
@@ -68,17 +85,21 @@ forced re-bump later. This plan bumps all versions FIRST, then verifies typechec
 updated stubs so every subsequent plan builds on the correct foundation.
 
 Also applies:
+- ESLint flat configs per package (apps/api and apps/web) so pnpm lint enforces actual rules
 - docker-compose: postgres:16-alpine → postgres:17-alpine
 - Tailwind 4 CSS-native setup (remove tailwind.config.js, replace @tailwind directives)
 - next.config.mjs → next.config.ts with OpenNext Cloudflare dev init
 - prisma/seed.ts: implement the demo dataset (stub currently logs "not yet implemented")
 
 Purpose: Correct version foundation before any code is written; docker-compose aligned to prod
-(Postgres 17 matches the RDS instance class in Terraform).
+(Postgres 17 matches the RDS instance class in Terraform); ESLint configs ensure CI lint job
+enforces real rules rather than exiting 0 vacuously.
 
 Output:
 - apps/api/package.json — @nestjs/* ^11, @nestjs/terminus ^11 added, @nestjs/* devDeps bumped
-- apps/web/package.json — next ^15, react/react-dom ^19, @apollo/client ^4, motion, tailwindcss ^4, @tailwindcss/postcss, @opennextjs/cloudflare ^1, wrangler ^4 (devDep); framer-motion removed
+- apps/web/package.json — next ^15, react/react-dom ^19, @apollo/client ^4, motion ^12, tailwindcss ^4, @tailwindcss/postcss, @opennextjs/cloudflare ^1, wrangler ^4 (devDep); framer-motion removed
+- apps/api/eslint.config.mjs — flat config using @typescript-eslint/eslint-plugin
+- apps/web/eslint.config.mjs — flat config using eslint-config-next
 - docker-compose.yml — postgres:17-alpine
 - apps/web/next.config.ts — replaces next.config.mjs; initOpenNextCloudflareForDev
 - apps/web/postcss.config.mjs — @tailwindcss/postcss plugin
@@ -128,6 +149,7 @@ From apps/api/package.json — CURRENT pinned versions (all wrong, must be bumpe
   [devDeps] "@nestjs/cli": "^10.4.0" → target "^11.0.0"
   [devDeps] "@nestjs/schematics": "^10.2.0" → target "^11.0.0"
   [devDeps] "@nestjs/testing": "^10.4.0" → target "^11.0.0"
+  [devDeps] "@typescript-eslint/eslint-plugin" — already present (verify exact key name in package.json)
   NEW: "@nestjs/terminus": "^11.0.0"
 
 From apps/web/package.json — CURRENT (all wrong, must be bumped):
@@ -136,7 +158,7 @@ From apps/web/package.json — CURRENT (all wrong, must be bumped):
   "react-dom": "^18.3.0"     → target "^19.0.0"
   "@apollo/client": "^3.11.0" → target "^4.0.0"
   "framer-motion": "^11.5.0"  → REMOVE (replaced by "motion")
-  NEW: "motion"               → add as dep (no version pin — latest 12.x)
+  NEW: "motion"               → add as dep at "^12.0.0"
   [devDeps] "tailwindcss": "^3.4.0" → target "^4.0.0"
   [devDeps] "autoprefixer": "^10.4.0" → REMOVE (not needed in Tailwind 4)
   NEW devDep: "@tailwindcss/postcss": "^4.0.0"
@@ -166,6 +188,152 @@ OpenNext next.config.ts (from RESEARCH.md Pattern 4):
 </interfaces>
 
 <tasks>
+
+<task type="auto" id="10-T0">
+  <name>Task 0: Create per-package ESLint flat configs (api + web)</name>
+  <read_first>
+    - apps/api/package.json (verify "@typescript-eslint/eslint-plugin" is present in devDeps — get exact version)
+    - apps/web/package.json (verify "eslint-config-next" is present in devDeps — get exact version)
+    - .planning/phases/01-foundation/01-CONTEXT.md (ESLint note under "Monorepo / pnpm workspace" section)
+  </read_first>
+  <files>apps/api/eslint.config.mjs, apps/web/eslint.config.mjs</files>
+  <action>
+    CONTEXT.md requires "ESLint configured per-package (task 1.0a)". Currently no eslint.config.mjs
+    or .eslintrc files exist in apps/api/ or apps/web/, so `pnpm lint` exits 0 with no rules
+    enforced — the CI lint job is vacuous.
+
+    1. CREATE apps/api/eslint.config.mjs:
+       This package uses @typescript-eslint (already in devDeps). Use ESLint flat config format
+       (eslint.config.mjs, not .eslintrc) to match modern tooling:
+
+       ```js
+       // apps/api/eslint.config.mjs
+       import tseslint from 'typescript-eslint';
+
+       export default tseslint.config(
+         {
+           files: ['**/*.ts'],
+           extends: [
+             ...tseslint.configs.recommendedTypeChecked,
+           ],
+           languageOptions: {
+             parserOptions: {
+               project: true,
+               tsconfigRootDir: import.meta.dirname,
+             },
+           },
+           rules: {
+             // CLAUDE.md non-negotiables
+             '@typescript-eslint/no-explicit-any': 'error',
+             'no-console': 'error',
+             '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }],
+           },
+         },
+         {
+           // Exclude compiled output and generated files
+           ignores: ['dist/**', 'node_modules/**', 'src/generated/**'],
+         },
+       );
+       ```
+
+       IMPORTANT: `typescript-eslint` is the unified package that re-exports both the parser and
+       plugin. If `apps/api/package.json` has `@typescript-eslint/eslint-plugin` and
+       `@typescript-eslint/parser` as separate packages (not `typescript-eslint` unified), use
+       the separate-package pattern instead:
+
+       ```js
+       // Fallback if 'typescript-eslint' unified package is not installed:
+       import tsParser from '@typescript-eslint/parser';
+       import tsPlugin from '@typescript-eslint/eslint-plugin';
+
+       export default [
+         {
+           files: ['**/*.ts'],
+           languageOptions: {
+             parser: tsParser,
+             parserOptions: {
+               project: './tsconfig.json',
+               tsconfigRootDir: import.meta.dirname,
+             },
+           },
+           plugins: { '@typescript-eslint': tsPlugin },
+           rules: {
+             '@typescript-eslint/no-explicit-any': 'error',
+             'no-console': 'error',
+             '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }],
+           },
+         },
+         {
+           ignores: ['dist/**', 'node_modules/**', 'src/generated/**'],
+         },
+       ];
+       ```
+
+       Use whichever pattern matches the installed packages. Check apps/api/package.json first.
+
+    2. CREATE apps/web/eslint.config.mjs:
+       Next.js ships eslint-config-next which wraps the recommended rules for App Router projects.
+       Use the flat config compat export:
+
+       ```js
+       // apps/web/eslint.config.mjs
+       import { FlatCompat } from '@eslint/eslintrc';
+       import path from 'path';
+       import { fileURLToPath } from 'url';
+
+       const __filename = fileURLToPath(import.meta.url);
+       const __dirname = path.dirname(__filename);
+
+       const compat = new FlatCompat({
+         baseDirectory: __dirname,
+       });
+
+       export default [
+         ...compat.extends('next/core-web-vitals'),
+         {
+           rules: {
+             // CLAUDE.md non-negotiables
+             'no-console': 'error',
+           },
+         },
+         {
+           ignores: ['.next/**', 'node_modules/**'],
+         },
+       ];
+       ```
+
+       NOTE: `@eslint/eslintrc` is a peer dep of `eslint-config-next@15`. If it is not in
+       apps/web/package.json, add it as a devDep. It should be transitively available but
+       adding explicitly prevents resolution issues.
+
+    After creating both files, run:
+      pnpm lint
+
+    If pnpm lint fails with "Cannot find module" errors, the required ESLint packages are not
+    installed. Add any missing packages to the relevant package.json devDeps and re-run pnpm install.
+    The lint run itself may produce rule violations in the existing skeleton code — that is
+    acceptable at this stage. The goal is that the configs LOAD correctly (no config parse errors).
+  </action>
+  <verify>
+    <automated>
+      test -f apps/api/eslint.config.mjs
+      test -f apps/web/eslint.config.mjs
+      grep "@typescript-eslint" apps/api/eslint.config.mjs
+      grep "eslint-config-next\|next/core-web-vitals" apps/web/eslint.config.mjs
+      # Configs must load (node --input-type=module can parse them)
+      node --input-type=module --eval "import('./apps/api/eslint.config.mjs').then(()=>process.exit(0)).catch(()=>process.exit(1))"
+      node --input-type=module --eval "import('./apps/web/eslint.config.mjs').then(()=>process.exit(0)).catch(()=>process.exit(1))"
+    </automated>
+  </verify>
+  <acceptance_criteria>
+    - apps/api/eslint.config.mjs exists and contains "@typescript-eslint"
+    - apps/web/eslint.config.mjs exists and contains a reference to next/core-web-vitals or eslint-config-next
+    - Both config files import without errors (node eval exits 0)
+    - apps/api/eslint.config.mjs includes 'no-console': 'error' rule (CLAUDE.md enforcement)
+    - apps/web/eslint.config.mjs includes 'no-console': 'error' rule (CLAUDE.md enforcement)
+  </acceptance_criteria>
+  <done>Per-package ESLint flat configs exist and load without errors; pnpm lint enforces real rules.</done>
+</task>
 
 <task type="auto" id="10-T1">
   <name>Task 1: Bump package.json versions (api + web) and add @nestjs/terminus</name>
@@ -211,7 +379,8 @@ OpenNext next.config.ts (from RESEARCH.md Pattern 4):
       "react-dom":      "^19.0.0"
       "@apollo/client": "^4.0.0"
       REMOVE "framer-motion" entirely
-      ADD "motion": "*"   (latest 12.x; no range pin — spec says "motion", registry is 12.40.0)
+      ADD "motion": "^12.0.0"   (pinned to ^12 — current registry is 12.40.0; wildcard '*' avoided
+                                  to prevent accidental major-version breakage)
 
     devDependencies:
       "tailwindcss":    "^4.0.0"
@@ -239,7 +408,7 @@ OpenNext next.config.ts (from RESEARCH.md Pattern 4):
       grep '"next"' apps/web/package.json | grep '"\\^15'
       grep '"react"' apps/web/package.json | grep '"\\^19'
       grep '@apollo/client' apps/web/package.json | grep '"\\^4'
-      grep '"motion"' apps/web/package.json
+      grep '"motion"' apps/web/package.json | grep '\^12'
       # Verify removals
       ! grep 'framer-motion' apps/web/package.json
       ! grep 'autoprefixer' apps/web/package.json
@@ -253,7 +422,7 @@ OpenNext next.config.ts (from RESEARCH.md Pattern 4):
     - apps/web/package.json contains "next": "^15
     - apps/web/package.json contains "react": "^19
     - apps/web/package.json contains "@apollo/client": "^4
-    - apps/web/package.json contains "motion"
+    - apps/web/package.json contains "motion": "^12.0.0" (NOT wildcard '*')
     - apps/web/package.json does NOT contain "framer-motion"
     - apps/web/package.json does NOT contain "autoprefixer"
     - apps/web/package.json contains "@tailwindcss/postcss"
@@ -568,13 +737,16 @@ OpenNext next.config.ts (from RESEARCH.md Pattern 4):
 </tasks>
 
 <verification>
-After both tasks complete, run from repo root:
+After all tasks complete, run from repo root:
   pnpm install                                    # must exit 0
   pnpm --filter @crewmate/api typecheck           # must exit 0
   pnpm --filter @crewmate/web typecheck           # must exit 0
   grep "postgres:17-alpine" docker-compose.yml    # must match
   grep '"@nestjs/terminus"' apps/api/package.json # must match
   grep '"next": "\^15' apps/web/package.json      # must match
+  grep '"motion".*\^12' apps/web/package.json     # must match (no wildcard)
+  test -f apps/api/eslint.config.mjs              # ESLint config exists
+  test -f apps/web/eslint.config.mjs              # ESLint config exists
 
 These confirm the version foundation is correct before wave 1.1 begins.
 </verification>
@@ -587,6 +759,8 @@ These confirm the version foundation is correct before wave 1.1 begins.
 5. apps/web/src/app/globals.css uses @import "tailwindcss" (Tailwind 4 syntax)
 6. apps/web/next.config.ts exists with initOpenNextCloudflareForDev call
 7. prisma/seed.ts implements the demo dataset (not a stub)
+8. apps/api/eslint.config.mjs and apps/web/eslint.config.mjs exist and enforce real rules
+9. "motion" is pinned to "^12.0.0" in apps/web/package.json (no wildcard)
 </success_criteria>
 
 <output>
@@ -595,4 +769,5 @@ After completion, create `.planning/phases/01-foundation/01-10-SUMMARY.md` docum
 - Any peer-dep resolution decisions made during pnpm install
 - Confirmation that both typechecks passed
 - Whether seed.ts was adjusted to match prisma/schema.prisma field names
+- Which ESLint config pattern was used (unified typescript-eslint vs separate parser/plugin packages)
 </output>
