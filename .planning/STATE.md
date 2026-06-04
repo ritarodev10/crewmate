@@ -1,0 +1,72 @@
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+current_phase: 01
+status: in-progress
+last_updated: "2026-06-04T07:50:00Z"
+progress:
+  total_phases: 5
+  completed_phases: 0
+  total_plans: 5
+  completed_plans: 1
+---
+
+# CrewMate — Project State
+
+**Last updated:** 2026-06-04
+**Current phase:** 01
+**Phase status:** In Progress
+**Active plan:** 01-10 (complete)
+**Session:** 2026-06-04
+
+---
+
+## Phase Progress
+
+| Phase | Status | Plans | Started | Completed |
+|-------|--------|-------|---------|-----------|
+| 1 — Foundation | In Progress | 1/5 done | 2026-06-04 | — |
+| 2 — UI Screens | Not Started | — | — | — |
+| 3 — Backend API | Not Started | — | — | — |
+| 4 — Integration | Not Started | — | — | — |
+| 5 — Polish | Not Started | — | — | — |
+
+---
+
+## Current Focus
+
+**Phase 1: Foundation**
+
+Goal: Monorepo scaffold + skeleton deploy to crewmate.ritaro.dev live
+
+Requirements in scope: INFRA-01, INFRA-02, INFRA-03, INFRA-04, INFRA-05, INFRA-06
+
+Next action: Execute plan 01-11 (api-skeleton — wave 2a, parallel with 01-12)
+
+---
+
+## Accumulated Context
+
+### Key Decisions
+
+- Plan 01-10 complete: Used separate @typescript-eslint/parser + plugin packages (not unified typescript-eslint) for api ESLint flat config
+- Plan 01-10 complete: next.config.ts uses export default (Next.js framework requirement; CLAUDE.md carve-out)
+- Plan 01-10 complete: seed.ts schema fields corrected to match prisma/schema.prisma (no role on User, WebhookEndpoint uses secret/isActive/events)
+- Build order is UI-first: Phase 2 renders all screens against fixtures before Phase 3 builds the backend. Visual design is signed off before API shapes are committed.
+- Single-domain deploy: `https://crewmate.ritaro.dev` — Cloudflare Worker serves Next.js and proxies `/api/*`, `/v1/*`, `/graphql`, `/ws` to AWS ECS Fargate behind a private ALB.
+- Deployment is in Phase 1, not at the end. Every gate from Phase 2 onward is a click-through on the live URL.
+
+### Blockers
+
+(none)
+
+### Todos
+
+Plan 01-10 (version alignment) complete. Worktree commits: b11f81f (ESLint configs), d63c294 (package bumps + jest), 91b9c59 (docker/tailwind/next/seed). Next: merge worktree-agent-aa2441ddf8d481347 to main, then execute plans 01-11 and 01-12 in parallel.
+
+---
+
+## Handoff
+
+Plan 01-10 (version alignment) complete. Worktree commits: b11f81f (ESLint configs), d63c294 (package bumps + jest), 91b9c59 (docker/tailwind/next/seed). Next: merge worktree-agent-aa2441ddf8d481347 to main, then execute plans 01-11 and 01-12 in parallel.
