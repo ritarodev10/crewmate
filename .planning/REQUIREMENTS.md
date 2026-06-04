@@ -85,8 +85,8 @@ All requirements derived from `docs/FEATURES.md`. Every F-NNN feature is on the 
 ### INFRA — Infrastructure and deployment
 
 - [x] **INFRA-01** (F-120): Production deployment at `https://crewmate.ritaro.dev`; Cloudflare Worker serves Next.js and proxies `/api/*`, `/v1/*`, `/graphql`, `/ws` to the AWS ALB; direct ALB requests without `x-cloudflare-secret` return 401
-- [ ] **INFRA-02** (F-121): Terraform manages AWS — `network` (VPC, subnets, NAT, security groups with Cloudflare IP allowlist), `data` (RDS Postgres 17, ElastiCache Redis 7, S3), `secrets` (Secrets Manager, IAM task roles), `compute` (ECS cluster, api/worker services, ALB)
-- [ ] **INFRA-03** (F-121): `apps/web/wrangler.toml` and Worker proxy handler (`apps/web/src/worker/proxy.ts`) are checked in; Wrangler secrets `BACKEND_ORIGIN` and `CLOUDFLARE_SHARED_SECRET` are set on the Worker
+- [x] **INFRA-02** (F-121): Terraform manages AWS — `network` (VPC, subnets, NAT, security groups with Cloudflare IP allowlist), `data` (RDS Postgres 17, ElastiCache Redis 7, S3), `secrets` (Secrets Manager, IAM task roles), `compute` (ECS cluster, api/worker services, ALB)
+- [x] **INFRA-03** (F-121): `apps/web/wrangler.toml` and Worker proxy handler (`apps/web/src/worker/proxy.ts`) are checked in; Wrangler secrets `BACKEND_ORIGIN` and `CLOUDFLARE_SHARED_SECRET` are set on the Worker
 - [x] **INFRA-04** (F-122): `deploy-api.yml` builds api image, pushes to ECR, runs `prisma migrate deploy` as a one-shot ECS task, rolling-updates api and worker services; gated by `prod` environment approval
 - [x] **INFRA-05** (F-122): `deploy-web.yml` builds the Next.js Worker bundle via `@opennextjs/cloudflare` (including the proxy handler) and runs `wrangler deploy`; gated by `prod` environment approval
 - [x] **INFRA-06** (F-123): `GET /healthz` returns 200 (liveness); `GET /readyz` checks DB + Redis and returns 200 (healthy) or 503 (degraded) within 5 seconds; ALB target group health check uses `/readyz`; shared-secret check bypassed for health endpoints

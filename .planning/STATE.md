@@ -4,20 +4,20 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 01
 status: unknown
-last_updated: "2026-06-04T08:34:02Z"
+last_updated: "2026-06-04T09:25:43.708Z"
 progress:
   total_phases: 5
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 5
-  completed_plans: 4
+  completed_plans: 5
 ---
 
 # CrewMate — Project State
 
-**Last updated:** 2026-06-04
+**Last updated:** 2026-06-04T09:24:33Z
 **Current phase:** 01
-**Phase status:** In Progress
-**Active plan:** 01-13 complete
+**Phase status:** In Progress — stopped at T2 (human cost review checkpoint)
+**Active plan:** 01-14 T1a+T1b complete; awaiting human approval for terraform apply
 **Session:** 2026-06-04
 
 ---
@@ -26,7 +26,7 @@ progress:
 
 | Phase | Status | Plans | Started | Completed |
 |-------|--------|-------|---------|-----------|
-| 1 — Foundation | In Progress | 4/5 done | 2026-06-04 | — |
+| 1 — Foundation | In Progress | 5/5 IaC written; awaiting apply | 2026-06-04 | — |
 | 2 — UI Screens | Not Started | — | — | — |
 | 3 — Backend API | Not Started | — | — | — |
 | 4 — Integration | Not Started | — | — | — |
@@ -42,7 +42,7 @@ Goal: Monorepo scaffold + skeleton deploy to crewmate.ritaro.dev live
 
 Requirements in scope: INFRA-01, INFRA-02, INFRA-03, INFRA-04, INFRA-05, INFRA-06
 
-Next action: Execute plan 01-14 (wave 3: Terraform infrastructure modules)
+Next action: Human reviews terraform plan (T2), acknowledges ~$82/mo cost, types "apply approved" to trigger T3
 
 ---
 
@@ -62,6 +62,8 @@ Next action: Execute plan 01-14 (wave 3: Terraform infrastructure modules)
 - Plan 01-13 complete: Prisma migrate uses deploy (non-interactive) not dev (interactive/would hang in CI)
 - Plan 01-13 complete: wrangler deploy invoked via pnpm exec to use project's pinned wrangler version
 - Plan 01-13 complete: ECS_PRIVATE_SUBNET_ID used as secret name (more descriptive than ECS_SUBNET_ID)
+- Plan 01-14 T1a+T1b complete: Root random_password.db_password breaks circular dependency between data and secrets modules (data needs password for aws_db_instance; secrets needs it for postgresql:// URL)
+- Plan 01-14 T1a+T1b complete: ALB is internet-facing (internal=false); security enforced by Cloudflare IP allowlist SG (15 CIDR ranges, for_each) + x-cloudflare-secret header guard
 - Build order is UI-first: Phase 2 renders all screens against fixtures before Phase 3 builds the backend. Visual design is signed off before API shapes are committed.
 - Single-domain deploy: `https://crewmate.ritaro.dev` — Cloudflare Worker serves Next.js and proxies `/api/*`, `/v1/*`, `/graphql`, `/ws` to AWS ECS Fargate behind a private ALB.
 - Deployment is in Phase 1, not at the end. Every gate from Phase 2 onward is a click-through on the live URL.
@@ -78,4 +80,14 @@ Next action: Execute plan 01-14 (wave 3: Terraform infrastructure modules)
 
 ## Handoff
 
-Plan 01-13 (GitHub Actions CI + deploy workflows) complete. Commits: 1ca33b7 (ci.yml — 4 jobs, postgres:17, redis:7, OIDC-only), ab90512 (deploy-api.yml + deploy-web.yml — OIDC, prod gate, smoke tests). GitHub secrets required before deploy workflows run: AWS_DEPLOY_ROLE_ARN, ECR_REPO_URL, ECS_PRIVATE_SUBNET_ID, ECS_SG_ID, CLOUDFLARE_API_TOKEN. Next: execute plan 01-14 (Terraform infrastructure modules).
+Plan 01-14 T1a+T1b: All 4 Terraform modules written and validated. Commits: 1105712 (T1a — root config + network module), 6b57508 (T1b — data + secrets + compute modules; terraform validate exits 0).
+
+terraform plan summary: 97 resources to add, 0 to change, 0 to destroy.
+
+STOPPED at T2 checkpoint — human must review the plan and acknowledge ~$82/mo AWS cost.
+
+To continue:
+1. cd infrastructure/terraform
+2. AWS_PROFILE=crewmate terraform plan -out=tfplan
+3. Review output — confirm ALB internal=false, github_actions trust = repo:ritarodev10/crewmate:*, RDS engine_version=17, no hardcoded secrets
+4. Type "apply approved" to proceed to T3 (terraform apply + Wrangler secrets + first deploy)
