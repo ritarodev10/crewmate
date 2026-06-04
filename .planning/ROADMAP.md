@@ -55,10 +55,10 @@
   3. Optimistic UI works on the dispatch board: cards move between columns when a transition mock fires and the job detail drawer opens on card click
   4. Worker mobile today view at `/today` renders the date strip and job list; card action buttons are present with a minimum 44px tap target
   5. `pnpm --filter @crewmate/web typecheck` exits 0 across all screen directories
-**Plans:** 4 plans
+**Plans:** 2/4 plans executed
 **Plan list:**
 - [x] 02-20-PLAN.md — Wave 2.0: Fixtures + MSW mocks (design system tokens, 10 fixture files, MSW handlers, Apollo mocks, providers.tsx)
-- [ ] 02-21-PLAN.md — Wave 2.1: App shell (route scaffolding, middleware auth guard, Sidebar + Topbar + shell, shadcn primitives, shared components)
+- [x] 02-21-PLAN.md — Wave 2.1: App shell (route scaffolding, middleware auth guard, Sidebar + Topbar + shell, shadcn primitives, shared components)
 - [ ] 02-22-PLAN.md — Wave 2.2: Screens — 9-agent parallel build of all 13 screens against fixture data
 - [ ] 02-23-PLAN.md — Wave 2.3: Polish (loading skeletons, empty states, motion pass, active nav, typecheck clean)
 **Execution:**
@@ -216,7 +216,7 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 4/5 | In Progress|  |
-| 2. UI Screens | 0/4 | Not started | — |
+| 2. UI Screens | 2/4 | In Progress|  |
 | 3. Backend API | 0/0 | Not started | — |
 | 4. Integration | 0/0 | Not started | — |
 | 5. Polish | 0/0 | Not started | — |
