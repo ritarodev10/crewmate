@@ -1,15 +1,5 @@
 @import "tailwindcss";
-
-@theme {
-  /* Brand color tokens — extend as the design system grows */
-  --color-brand-600: #2563eb;
-  --color-brand-700: #1d4ed8;
-  --color-surface:   #ffffff;
-  --color-muted:     #6b7280;
-
-  /* Typography */
-  --font-sans: ui-sans-serif, system-ui, -apple-system, sans-serif;
-}
+@import "../styles/tokens.css";
 
 html,
 body {
@@ -17,6 +7,6 @@ body {
 }
 
 body {
-  background-color: var(--color-surface);
+  background-color: var(--color-canvas);
   font-family: var(--font-sans);
 }
