@@ -46,3 +46,10 @@ prisma/*.db
 
 # Agent worktrees (see docs/execution/01-agent-workflow.md)
 .worktrees/
+
+# Terraform state (local Phase 1 — state is local, never committed)
+infrastructure/terraform/terraform.tfstate
+infrastructure/terraform/terraform.tfstate.backup
+infrastructure/terraform/.terraform/
+# NOTE: infrastructure/terraform/.terraform.lock.hcl SHOULD be committed — it pins provider versions
+# Do NOT add .terraform.lock.hcl to .gitignore
