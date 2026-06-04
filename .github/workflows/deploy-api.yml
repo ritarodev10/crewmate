@@ -1,0 +1,68 @@
+name: Deploy API
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    environment: prod
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Login to ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push API image
+        env:
+          ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          ECR_REPOSITORY: crewmate-api
+          IMAGE_TAG: sha-${{ github.sha }}
+        run: |
+          docker build -f docker/api.Dockerfile . \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+      - name: Run Prisma migrate deploy
+        run: |
+          aws ecs run-task \
+            --cluster crewmate \
+            --task-definition crewmate-api \
+            --overrides '{"containerOverrides":[{"name":"api","command":["npx","prisma","migrate","deploy","--schema","prisma/schema.prisma"]}]}' \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[${{ secrets.ECS_PRIVATE_SUBNET_ID }}],securityGroups=[${{ secrets.ECS_SG_ID }}],assignPublicIp=DISABLED}" \
+            --wait
+
+      - name: Rolling update API and worker services
+        run: |
+          aws ecs update-service --force-new-deployment \
+            --cluster crewmate --service crewmate-api
+          aws ecs update-service --force-new-deployment \
+            --cluster crewmate --service crewmate-worker
+
+      - name: Wait for services to stabilize
+        run: |
+          aws ecs wait services-stable \
+            --cluster crewmate \
+            --services crewmate-api crewmate-worker
+
+      - name: Smoke test
+        run: |
+          curl -f https://crewmate.ritaro.dev/api/healthz
+          curl -f https://crewmate.ritaro.dev/api/readyz
