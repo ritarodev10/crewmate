@@ -22,6 +22,9 @@
     "next": "^15.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "msw": "^2.0.0",
+    "react-hook-form": "^7.53.0",
+    "@hookform/resolvers": "^3.9.0",
     "socket.io-client": "^4.7.0",
     "tailwind-merge": "^2.5.0",
     "zod": "^3.23.0"
