@@ -1,0 +1,12 @@
+name = "crewmate-web"
+main = "src/worker/proxy.ts"
+compatibility_date = "2024-12-30"
+compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
+
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
+
+[[routes]]
+pattern = "crewmate.ritaro.dev/*"
+custom_domain = true
