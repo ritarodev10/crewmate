@@ -28,7 +28,7 @@
   2. CI workflow (`ci.yml`) goes green on a dummy PR with postgres and redis service containers
   3. `https://crewmate.ritaro.dev` returns the placeholder login page through the Cloudflare Worker
   4. `curl https://crewmate.ritaro.dev/api/healthz` returns 200 through the Worker proxy
-  5. A direct request to the AWS ALB URL without `x-cloudflare-secret` returns 401
+  5. A direct request to `https://crewmate-api.fly.dev/healthz` without `x-cloudflare-secret` returns 401
 **Plans:** 4/5 plans executed
 **Plan list:**
 - [x] 01-PLAN-10-monorepo.md — Version alignment (NestJS 10→11, Next 14→15, Tailwind 3→4, docker-compose postgres 16→17, seed)
@@ -37,10 +37,10 @@
 - [ ] 01-PLAN-13-ci.md — GitHub Actions: ci.yml + deploy-api.yml + deploy-web.yml
 - [ ] 01-PLAN-14-terraform.md — All 4 Terraform modules + manual apply + Phase 1 gate
 **Execution:**
-- Waves: Wave 1 (plan-10), Wave 2 (plan-11 + plan-12 parallel), Wave 3 (plan-13), Wave 4 (plan-14 + manual deploy)
+- Waves: Wave 1 (plan-10), Wave 2 (plan-11 + plan-12 parallel), Wave 3 (plan-13), Wave 4 (plan-14 + Fly.io deploy)
 - Concurrency cap: 2 agents at peak (wave 2)
 - Estimated wall-clock: ~10h
-- Gate: `pnpm dev` local ports reachable, CI green, `https://crewmate.ritaro.dev` placeholder loads, `/api/healthz` 200, direct ALB returns 401
+- Gate: `pnpm dev` local ports reachable, CI green, `https://crewmate.ritaro.dev` placeholder loads, `/api/healthz` 200, direct `crewmate-api.fly.dev` without secret returns 401
 
 ---
 
@@ -177,10 +177,10 @@
 | SETTINGS-01 | Profile settings at `/settings/profile` — avatar, name, password, 2FA, timezone, sign-out-all | 2 |
 | SETTINGS-02 | Account settings at `/settings/account` — operator name/slug, timezone, job duration, danger zone | 2 |
 | SETTINGS-03 | Notification preferences UI at `/settings/notifications` — per-kind email toggles | 2 |
-| INFRA-01 | Production deployment at `https://crewmate.ritaro.dev`; Worker proxies to ALB; direct ALB returns 401 | 1 |
-| INFRA-02 | Terraform AWS IaC — network, data, secrets, compute modules | 1 |
+| INFRA-01 | Production deployment at `https://crewmate.ritaro.dev`; Worker proxies to Fly.io; direct Fly.io URL returns 401 | 1 |
+| INFRA-02 | Terraform AWS IaC — network, data, secrets, compute modules (portfolio artifact; not applied to live env) | 1 |
 | INFRA-03 | `wrangler.toml` and `apps/web/src/worker/proxy.ts` checked in; Wrangler secrets set | 1 |
-| INFRA-04 | `deploy-api.yml` — OIDC to AWS, migrate, roll api + worker; gated by `prod` approval | 1 |
+| INFRA-04 | `deploy-api.yml` — flyctl deploy (remote build on Fly.io), migrate, roll api; gated by `prod` approval | 1 |
 | INFRA-05 | `deploy-web.yml` — `@opennextjs/cloudflare` build + `wrangler deploy`; gated by `prod` approval | 1 |
 | INFRA-06 | `GET /healthz` (liveness) and `GET /readyz` (DB + Redis readiness); ALB uses `/readyz`; guard bypassed for health | 1 |
 | INFRA-07 | REST `/v1/*` with DTO validation; code-first GraphQL `/graphql` with subscriptions; SDL in `packages/contracts` | 3 |
@@ -198,7 +198,7 @@
 
 | Gate | Condition | Who approves |
 |------|-----------|--------------|
-| Phase 1 → 2 | `PHASE_1_GATE`: `pnpm dev` local ports reachable, CI green on dummy PR, `https://crewmate.ritaro.dev` placeholder loads, `/api/healthz` 200, direct ALB without shared secret returns 401 | Human |
+| Phase 1 → 2 | `PHASE_1_GATE`: `pnpm dev` local ports reachable, CI green on dummy PR, `https://crewmate.ritaro.dev` placeholder loads, `/api/healthz` 200, direct `crewmate-api.fly.dev` without shared secret returns 401 | Human |
 | Phase 2 → 3 | `PHASE_2_GATE`: every route reachable on live URL, every screen matches `docs/images/ui/` reference, optimistic UI works, no console network errors, visual design signed off | Human |
 | Phase 3 → 4 | `PHASE_3_GATE`: API smoke script passes on live URL, `pnpm --filter @crewmate/api test && test:e2e` both green | Human |
 | Phase 4 → 5 | `PHASE_4_GATE`: full happy path on live URL, real-time WebSocket update confirmed across two browsers, webhook test delivery appears in log within seconds | Human |

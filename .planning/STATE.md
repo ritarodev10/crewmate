@@ -16,8 +16,8 @@ progress:
 
 **Last updated:** 2026-06-04T09:24:33Z
 **Current phase:** 01
-**Phase status:** In Progress — stopped at T2 (human cost review checkpoint)
-**Active plan:** 01-14 T1a+T1b complete; awaiting human approval for terraform apply
+**Phase status:** In Progress — Wave 4 IaC complete (portfolio artifact); awaiting Fly.io account setup (T3)
+**Active plan:** 01-14 T1a+T1b+T2 complete; awaiting human action for Fly.io setup (T3)
 **Session:** 2026-06-04
 
 ---
@@ -26,7 +26,7 @@ progress:
 
 | Phase | Status | Plans | Started | Completed |
 |-------|--------|-------|---------|-----------|
-| 1 — Foundation | In Progress | 5/5 IaC written; awaiting apply | 2026-06-04 | — |
+| 1 — Foundation | In Progress | 5/5 plans; Terraform IaC committed (portfolio artifact), deployment target is Fly.io; pending T3+T4 | 2026-06-04 | — |
 | 2 — UI Screens | Not Started | — | — | — |
 | 3 — Backend API | Not Started | — | — | — |
 | 4 — Integration | Not Started | — | — | — |
@@ -42,7 +42,7 @@ Goal: Monorepo scaffold + skeleton deploy to crewmate.ritaro.dev live
 
 Requirements in scope: INFRA-01, INFRA-02, INFRA-03, INFRA-04, INFRA-05, INFRA-06
 
-Next action: Human reviews terraform plan (T2), acknowledges ~$82/mo cost, types "apply approved" to trigger T3
+Next action: Human completes Fly.io account setup (T3): brew install flyctl, fly launch --no-deploy, fly secrets set, fly tokens create deploy → GitHub Secret, wrangler secret put BACKEND_ORIGIN + CLOUDFLARE_SHARED_SECRET. Type "fly ready" to resume.
 
 ---
 
@@ -61,11 +61,11 @@ Next action: Human reviews terraform plan (T2), acknowledges ~$82/mo cost, types
 - Plan 01-13 complete: pnpm 10.15.0 and Node 22 locked in all workflow jobs (matches packageManager field in package.json)
 - Plan 01-13 complete: Prisma migrate uses deploy (non-interactive) not dev (interactive/would hang in CI)
 - Plan 01-13 complete: wrangler deploy invoked via pnpm exec to use project's pinned wrangler version
-- Plan 01-13 complete: ECS_PRIVATE_SUBNET_ID used as secret name (more descriptive than ECS_SUBNET_ID)
 - Plan 01-14 T1a+T1b complete: Root random_password.db_password breaks circular dependency between data and secrets modules (data needs password for aws_db_instance; secrets needs it for postgresql:// URL)
-- Plan 01-14 T1a+T1b complete: ALB is internet-facing (internal=false); security enforced by Cloudflare IP allowlist SG (15 CIDR ranges, for_each) + x-cloudflare-secret header guard
+- Plan 01-14 T1a+T1b complete: ALB is internet-facing (internal=false); security enforced by Cloudflare IP allowlist SG (15 CIDR ranges, for_each) + x-cloudflare-secret header guard (portfolio artifact only — not applied to live env)
+- Plan 01-14 T2 complete: Deployment target changed from AWS ECS Fargate to Fly.io. Terraform IaC (T1a+T1b) committed as portfolio artifact in infrastructure/terraform/ — terraform validate exits 0 but terraform apply is not run. fly.toml added; deploy-api.yml updated to use flyctl deploy --remote-only.
 - Build order is UI-first: Phase 2 renders all screens against fixtures before Phase 3 builds the backend. Visual design is signed off before API shapes are committed.
-- Single-domain deploy: `https://crewmate.ritaro.dev` — Cloudflare Worker serves Next.js and proxies `/api/*`, `/v1/*`, `/graphql`, `/ws` to AWS ECS Fargate behind a private ALB.
+- Single-domain deploy: `https://crewmate.ritaro.dev` — Cloudflare Worker serves Next.js and proxies `/api/*`, `/v1/*`, `/graphql`, `/ws` to the Fly.io API at `https://crewmate-api.fly.dev`.
 - Deployment is in Phase 1, not at the end. Every gate from Phase 2 onward is a click-through on the live URL.
 
 ### Blockers
@@ -74,20 +74,24 @@ Next action: Human reviews terraform plan (T2), acknowledges ~$82/mo cost, types
 
 ### Todos
 
-(none)
+- pending: Fly.io account setup (T3) — brew install flyctl, fly launch --no-deploy, fly secrets set, fly tokens create deploy, wrangler secret put BACKEND_ORIGIN + CLOUDFLARE_SHARED_SECRET
+- pending: First deploy + smoke tests (T4) — flyctl deploy --remote-only; verify all 5 curl smoke tests
 
 ---
 
 ## Handoff
 
-Plan 01-14 T1a+T1b: All 4 Terraform modules written and validated. Commits: 1105712 (T1a — root config + network module), 6b57508 (T1b — data + secrets + compute modules; terraform validate exits 0).
+Plan 01-14 T1a+T1b: All 4 Terraform modules written and validated (portfolio artifact). Commits: 1105712 (T1a — root config + network module), 6b57508 (T1b — data + secrets + compute modules; terraform validate exits 0).
 
-terraform plan summary: 97 resources to add, 0 to change, 0 to destroy.
+Plan 01-14 T2: fly.toml created; deploy-api.yml updated to use flyctl deploy --remote-only (replaces ECS/ECR workflow). Deployment target is Fly.io, not AWS ECS.
 
-STOPPED at T2 checkpoint — human must review the plan and acknowledge ~$82/mo AWS cost.
+STOPPED at T3 checkpoint — human must complete Fly.io account setup before first deploy can run.
 
 To continue:
-1. cd infrastructure/terraform
-2. AWS_PROFILE=crewmate terraform plan -out=tfplan
-3. Review output — confirm ALB internal=false, github_actions trust = repo:ritarodev10/crewmate:*, RDS engine_version=17, no hardcoded secrets
-4. Type "apply approved" to proceed to T3 (terraform apply + Wrangler secrets + first deploy)
+1. brew install flyctl && fly auth login
+2. fly launch --no-deploy  (from repo root — accept crewmate-api name + Fly Postgres)
+3. fly secrets set REDIS_URL=<upstash-rediss-url> JWT_ACCESS_SECRET=<64-char-hex> JWT_REFRESH_SECRET=<64-char-hex> WEBHOOK_SIGNING_SECRET=<64-char-hex> CLOUDFLARE_SHARED_SECRET=<64-char-hex>
+4. fly tokens create deploy  → add as FLY_API_TOKEN in GitHub Secrets
+5. cd apps/web && wrangler secret put BACKEND_ORIGIN  (enter: https://crewmate-api.fly.dev)
+6. wrangler secret put CLOUDFLARE_SHARED_SECRET  (same value as step 3)
+7. Type "fly ready" to resume at T4 (first deploy + smoke tests)
