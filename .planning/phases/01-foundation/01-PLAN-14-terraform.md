@@ -216,8 +216,8 @@ State backend (local for Phase 1):
 
 <tasks>
 
-<task type="auto" id="14-T1">
-  <name>Task 1: Write all 4 Terraform modules + root main.tf + backend.tf</name>
+<task type="auto" id="14-T1a">
+  <name>Task 1a: Root config + network module (backend.tf, main.tf, variables.tf, outputs.tf, network/)</name>
   <read_first>
     - .planning/phases/01-foundation/01-CONTEXT.md (Terraform modules section, detailed specs for each)
     - .planning/phases/01-foundation/01-RESEARCH.md (Terraform section, GitHub OIDC resource)
@@ -232,41 +232,20 @@ State backend (local for Phase 1):
     infrastructure/terraform/network/main.tf,
     infrastructure/terraform/network/variables.tf,
     infrastructure/terraform/network/outputs.tf,
-    infrastructure/terraform/data/main.tf,
-    infrastructure/terraform/data/variables.tf,
-    infrastructure/terraform/data/outputs.tf,
-    infrastructure/terraform/secrets/main.tf,
-    infrastructure/terraform/secrets/variables.tf,
-    infrastructure/terraform/secrets/outputs.tf,
-    infrastructure/terraform/compute/main.tf,
-    infrastructure/terraform/compute/variables.tf,
-    infrastructure/terraform/compute/outputs.tf,
     .gitignore
   </files>
   <action>
-    Create the infrastructure/terraform/ directory structure. All 4 modules and the root config
-    are created from scratch (the directory does not exist yet).
+    Create the infrastructure/terraform/ root config and the network module from scratch.
+    The infrastructure/ directory does not exist yet.
 
-    Structure:
+    Directory structure for this task:
       infrastructure/terraform/
       ├── backend.tf         (local state + remote S3 as comment)
       ├── main.tf            (root — calls all 4 modules, passes outputs as inputs)
       ├── variables.tf       (root variables: aws_region, environment)
       ├── outputs.tf         (root outputs: expose key values like alb_dns_name)
-      ├── network/
-      │   ├── main.tf        (VPC, subnets, NAT, SGs)
-      │   ├── variables.tf
-      │   └── outputs.tf
-      ├── data/
-      │   ├── main.tf        (RDS, ElastiCache, S3)
-      │   ├── variables.tf
-      │   └── outputs.tf
-      ├── secrets/
-      │   ├── main.tf        (Secrets Manager, IAM roles, OIDC)
-      │   ├── variables.tf
-      │   └── outputs.tf
-      └── compute/
-          ├── main.tf        (ECS, ECR, ALB, CloudWatch)
+      └── network/
+          ├── main.tf        (VPC, subnets, NAT, SGs)
           ├── variables.tf
           └── outputs.tf
 
@@ -285,7 +264,31 @@ State backend (local for Phase 1):
       }
       data "aws_caller_identity" "current" {}
 
-    NETWORK MODULE (most critical — blocks all others):
+    BACKEND (backend.tf):
+      terraform {
+        backend "local" {
+          path = "terraform.tfstate"
+        }
+      }
+      # Remote S3 backend (enable in Phase 5):
+      # backend "s3" {
+      #   bucket         = "crewmate-tf-state-<account_id>"
+      #   key            = "prod/terraform.tfstate"
+      #   region         = "us-east-1"
+      #   dynamodb_table = "crewmate-tf-lock"
+      #   encrypt        = true
+      # }
+
+    ROOT VARIABLES (variables.tf):
+      variable "aws_region" { default = "us-east-1" }
+      variable "environment" { default = "prod" }
+
+    ROOT OUTPUTS (outputs.tf):
+      Expose: alb_dns_name, ecr_repo_url, ecs_cluster_name from module.compute.
+      These are defined here but sourced from the compute module created in T1b.
+      For now, declare them with module.compute.* references — they will resolve after T1b.
+
+    NETWORK MODULE (network/main.tf — most critical, blocks compute):
       aws_vpc "crewmate_vpc": cidr_block="10.0.0.0/16", enable_dns_hostnames=true, enable_dns_support=true
       2 public subnets (10.0.1.0/24, 10.0.2.0/24) in us-east-1a + us-east-1b
       2 private subnets (10.0.10.0/24, 10.0.11.0/24) in us-east-1a + us-east-1b
@@ -318,7 +321,83 @@ State backend (local for Phase 1):
       Use for_each or count over the list for aws_security_group_rule resources (cleaner than
       multiple aws_security_group inline ingress blocks).
 
-    DATA MODULE:
+    NETWORK OUTPUTS (network/outputs.tf):
+      Export: vpc_id, public_subnet_ids (list), private_subnet_ids (list),
+              alb_sg_id, ecs_sg_id, rds_sg_id, redis_sg_id
+
+    GITIGNORE: Ensure .gitignore at repo root includes:
+      # Terraform state (local Phase 1 — state is local, never committed)
+      infrastructure/terraform/terraform.tfstate
+      infrastructure/terraform/terraform.tfstate.backup
+      infrastructure/terraform/.terraform/
+      # NOTE: infrastructure/terraform/.terraform.lock.hcl should be COMMITTED — it pins provider versions
+      # Do NOT add .terraform.lock.hcl to .gitignore
+
+    ROOT MAIN.TF module block for network (write the full module block with correct source path):
+      module "network" {
+        source      = "./network"
+        aws_region  = var.aws_region
+        environment = var.environment
+      }
+      Add stubs for module "data", module "secrets", module "compute" that reference T1b source
+      paths. These will be filled by T1b — having them in main.tf now allows terraform validate
+      to run after T1b completes without rewriting main.tf.
+  </action>
+  <verify>
+    <automated>
+      # Root config files exist
+      test -f infrastructure/terraform/backend.tf
+      test -f infrastructure/terraform/main.tf
+      test -f infrastructure/terraform/variables.tf
+      test -f infrastructure/terraform/outputs.tf
+      # Network module files exist
+      test -f infrastructure/terraform/network/main.tf
+      test -f infrastructure/terraform/network/variables.tf
+      test -f infrastructure/terraform/network/outputs.tf
+      # Key resources present
+      grep "aws_vpc" infrastructure/terraform/network/main.tf
+      grep 'backend "local"' infrastructure/terraform/backend.tf
+      # ALB SG references Cloudflare IPs in network module
+      grep "cloudflare_ipv4_cidrs\|173.245.48" infrastructure/terraform/network/main.tf
+      # State file gitignored
+      grep "terraform.tfstate" .gitignore
+    </automated>
+  </verify>
+  <acceptance_criteria>
+    - infrastructure/terraform/backend.tf exists and contains 'backend "local"' plus remote S3 as a comment
+    - infrastructure/terraform/network/main.tf contains "aws_vpc" resource
+    - infrastructure/terraform/network/main.tf contains Cloudflare IP CIDR list
+    - infrastructure/terraform/network/outputs.tf exports vpc_id, public_subnet_ids, private_subnet_ids, alb_sg_id, ecs_sg_id, rds_sg_id, redis_sg_id
+    - .gitignore contains "terraform.tfstate" entry
+    - No Terraform file in this task contains hardcoded passwords, secrets, or access keys
+  </acceptance_criteria>
+  <done>Root config + network module written; .gitignore updated; network outputs declared.</done>
+</task>
+
+<task type="auto" id="14-T1b">
+  <name>Task 1b: data, secrets, and compute modules (9 files) + terraform validate</name>
+  <read_first>
+    - infrastructure/terraform/main.tf (just created in T1a — see module stubs to complete)
+    - infrastructure/terraform/network/outputs.tf (just created in T1a — read output names before referencing)
+    - .planning/phases/01-foundation/01-CONTEXT.md (data, secrets, compute module specs)
+    - .planning/phases/01-foundation/01-RESEARCH.md (GitHub OIDC resource, ECS task definition)
+  </read_first>
+  <files>
+    infrastructure/terraform/data/main.tf,
+    infrastructure/terraform/data/variables.tf,
+    infrastructure/terraform/data/outputs.tf,
+    infrastructure/terraform/secrets/main.tf,
+    infrastructure/terraform/secrets/variables.tf,
+    infrastructure/terraform/secrets/outputs.tf,
+    infrastructure/terraform/compute/main.tf,
+    infrastructure/terraform/compute/variables.tf,
+    infrastructure/terraform/compute/outputs.tf
+  </files>
+  <action>
+    Create the data, secrets, and compute modules. The root main.tf (from T1a) already has module
+    stubs for these — fill them in with the correct source paths and variable inputs.
+
+    DATA MODULE (data/main.tf):
       aws_db_subnet_group: uses private subnet IDs from network module
       aws_db_instance "crewmate_postgres":
         engine = "postgres", engine_version = "17"
@@ -334,7 +413,7 @@ State backend (local for Phase 1):
 
       NOTE on RDS password: for Phase 1, generate it via random_password resource and store the
       full DATABASE_URL in Secrets Manager. The `random_password` resource requires hashicorp/random
-      provider — add to required_providers.
+      provider — add to required_providers in root main.tf (edit main.tf to add it).
 
       aws_elasticache_subnet_group: uses private subnets
       aws_elasticache_cluster "crewmate_redis":
@@ -350,7 +429,10 @@ State backend (local for Phase 1):
         aws_s3_bucket_versioning: disabled for both (cost per CONTEXT.md)
         aws_s3_bucket_public_access_block: block all public access on both
 
-    SECRETS MODULE:
+    DATA OUTPUTS (data/outputs.tf):
+      db_endpoint, redis_endpoint, assets_bucket_name
+
+    SECRETS MODULE (secrets/main.tf):
       Secrets Manager entries (7 total):
         aws_secretsmanager_secret + aws_secretsmanager_secret_version for each:
           crewmate/db_url — full postgresql:// URL using RDS endpoint + random password
@@ -384,7 +466,13 @@ State backend (local for Phase 1):
                  on crewmate cluster/services/task-definitions
             SecretsManager: GetSecretValue on crewmate/* ARN path
 
-    COMPUTE MODULE:
+    SECRETS OUTPUTS (secrets/outputs.tf):
+      ecs_task_role_arn, github_actions_role_arn,
+      db_url_secret_arn, redis_url_secret_arn,
+      jwt_access_secret_arn, jwt_refresh_secret_arn,
+      webhook_signing_secret_arn, cloudflare_shared_secret_arn
+
+    COMPUTE MODULE (compute/main.tf):
       aws_ecr_repository "crewmate_api":
         name = "crewmate-api"
         image_tag_mutability = "MUTABLE"
@@ -395,16 +483,10 @@ State backend (local for Phase 1):
       aws_cloudwatch_log_group: "/crewmate/api" + "/crewmate/worker" (retention 14 days — portfolio cost)
 
       ALB:
-        aws_lb "crewmate_alb": internal=true (NOT internet-facing — Worker → ALB is internal)
-          subnets = private_subnet_ids (ALB is in private subnets; Cloudflare connects via Workers → public internet → CF edge → Workers → ALB)
-          WAIT: review this. The ALB must be reachable from the Cloudflare Worker. Workers make
-          outbound HTTPS requests to the origin (BACKEND_ORIGIN). If the ALB is internal (no public
-          IP), the Worker cannot reach it directly. CORRECTION: make the ALB internet-facing but
-          restrict ingress to Cloudflare IPs only via SG.
-          Decision (from CONTEXT.md): ALB is HTTP:80 only (no TLS), internet-facing.
-          aws_lb "crewmate_alb": internal=false, load_balancer_type="application"
-          subnets = public_subnet_ids (ALB needs public subnets to receive inbound from Workers)
-          security_groups = [alb_sg_id] (restricts to Cloudflare IPs only)
+        Decision (from CONTEXT.md): ALB is HTTP:80 only (no TLS), internet-facing.
+        aws_lb "crewmate_alb": internal=false, load_balancer_type="application"
+        subnets = public_subnet_ids (ALB needs public subnets to receive inbound from Workers)
+        security_groups = [alb_sg_id] (restricts to Cloudflare IPs only)
 
         aws_lb_listener "http": port=80, protocol="HTTP", forward to target group
         aws_lb_target_group "crewmate_api_tg":
@@ -451,14 +533,10 @@ State backend (local for Phase 1):
 
         aws_ecs_service "crewmate_worker": same but no load_balancer block
 
-    GITIGNORE: Ensure .gitignore at repo root includes:
-      # Terraform state (local Phase 1 — state is local, never committed)
-      infrastructure/terraform/terraform.tfstate
-      infrastructure/terraform/terraform.tfstate.backup
-      infrastructure/terraform/.terraform/
-      infrastructure/terraform/.terraform.lock.hcl  # actually COMMIT this — it pins provider versions
+    COMPUTE OUTPUTS (compute/outputs.tf):
+      alb_dns_name, ecr_repo_url, ecs_cluster_name, api_service_name, worker_service_name
 
-    After creating all files, run from infrastructure/terraform/:
+    After creating all 9 files, run from infrastructure/terraform/:
       terraform init
       terraform validate (all 4 modules must validate cleanly)
       terraform fmt -recursive (enforce formatting)
@@ -466,39 +544,36 @@ State backend (local for Phase 1):
   <verify>
     <automated>
       # All module files exist
-      test -f infrastructure/terraform/backend.tf
-      test -f infrastructure/terraform/main.tf
-      test -f infrastructure/terraform/network/main.tf
       test -f infrastructure/terraform/data/main.tf
+      test -f infrastructure/terraform/data/variables.tf
+      test -f infrastructure/terraform/data/outputs.tf
       test -f infrastructure/terraform/secrets/main.tf
+      test -f infrastructure/terraform/secrets/variables.tf
+      test -f infrastructure/terraform/secrets/outputs.tf
       test -f infrastructure/terraform/compute/main.tf
+      test -f infrastructure/terraform/compute/variables.tf
+      test -f infrastructure/terraform/compute/outputs.tf
       # Key resources present
-      grep "aws_vpc" infrastructure/terraform/network/main.tf
       grep "aws_db_instance" infrastructure/terraform/data/main.tf
       grep "aws_iam_openid_connect_provider" infrastructure/terraform/secrets/main.tf
       grep "aws_ecs_service" infrastructure/terraform/compute/main.tf
       grep "aws_lb " infrastructure/terraform/compute/main.tf
       # ALB is internet-facing (required for Worker to reach it)
       grep "internal.*false" infrastructure/terraform/compute/main.tf
-      # State file gitignored
-      grep "terraform.tfstate" .gitignore
       # Validate (requires terraform CLI)
       cd infrastructure/terraform && terraform init -backend=false && terraform validate
     </automated>
   </verify>
   <acceptance_criteria>
-    - All 16 Terraform files exist (4 modules x 3 files + backend.tf + main.tf + variables.tf + outputs.tf)
-    - infrastructure/terraform/network/main.tf contains "aws_vpc" resource
     - infrastructure/terraform/data/main.tf contains "aws_db_instance" resource
     - infrastructure/terraform/secrets/main.tf contains "aws_iam_openid_connect_provider" resource
     - infrastructure/terraform/compute/main.tf contains "aws_ecs_service" resource
     - infrastructure/terraform/compute/main.tf contains internal = false (ALB is internet-facing)
-    - infrastructure/terraform/backend.tf contains 'backend "local"' and remote S3 as a comment
     - terraform validate exits 0 for all modules (cd infrastructure/terraform && terraform validate)
-    - .gitignore contains "terraform.tfstate" entry
     - No Terraform file contains hardcoded passwords, secrets, or access keys
+    - All 16 Terraform files exist across T1a + T1b (4 modules x 3 files + 4 root files)
   </acceptance_criteria>
-  <done>All 4 Terraform modules written and validated; state config in place; .gitignore updated.</done>
+  <done>All 4 Terraform modules written and validated; terraform validate exits 0; all 16 files exist.</done>
 </task>
 
 <task type="checkpoint:human-verify" gate="blocking" id="14-T2">
@@ -664,4 +739,3 @@ After completion, create `.planning/phases/01-foundation/01-14-SUMMARY.md` docum
 - Confirmation all 5 Phase 1 gate criteria are met
 - Monthly cost estimate (actual AWS pricing page numbers)
 </output>
-

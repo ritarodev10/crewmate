@@ -16,7 +16,7 @@ files_modified:
   - apps/web/src/app/globals.css
 autonomous: true
 requirements:
-  - INFRA-02
+  - INFRA-07
 
 new_dependencies:
   - name: "@nestjs/terminus"
@@ -33,6 +33,7 @@ must_haves:
     - "docker-compose.yml references postgres:17-alpine, not postgres:16-alpine"
     - "apps/web runs Tailwind 4 CSS-native setup (no tailwind.config.js, @import in globals.css)"
     - "pnpm lint exits non-zero on a file with a TypeScript error (ESLint configs enforce rules)"
+    - "apps/api jest config has rootDir '.' so test files in apps/api/test/ are discoverable"
   artifacts:
     - path: "apps/api/package.json"
       provides: "@nestjs/* ^11 deps, @nestjs/terminus ^11"
@@ -90,13 +91,15 @@ Also applies:
 - Tailwind 4 CSS-native setup (remove tailwind.config.js, replace @tailwind directives)
 - next.config.mjs → next.config.ts with OpenNext Cloudflare dev init
 - prisma/seed.ts: implement the demo dataset (stub currently logs "not yet implemented")
+- apps/api jest config: rootDir updated to '.' so test/ files are discoverable
 
 Purpose: Correct version foundation before any code is written; docker-compose aligned to prod
 (Postgres 17 matches the RDS instance class in Terraform); ESLint configs ensure CI lint job
 enforces real rules rather than exiting 0 vacuously.
 
 Output:
-- apps/api/package.json — @nestjs/* ^11, @nestjs/terminus ^11 added, @nestjs/* devDeps bumped
+- apps/api/package.json — @nestjs/* ^11, @nestjs/terminus ^11 added, @nestjs/* devDeps bumped,
+  jest config rootDir changed from 'src' to '.'
 - apps/web/package.json — next ^15, react/react-dom ^19, @apollo/client ^4, motion ^12, tailwindcss ^4, @tailwindcss/postcss, @opennextjs/cloudflare ^1, wrangler ^4 (devDep); framer-motion removed
 - apps/api/eslint.config.mjs — flat config using @typescript-eslint/eslint-plugin
 - apps/web/eslint.config.mjs — flat config using eslint-config-next
@@ -336,9 +339,9 @@ OpenNext next.config.ts (from RESEARCH.md Pattern 4):
 </task>
 
 <task type="auto" id="10-T1">
-  <name>Task 1: Bump package.json versions (api + web) and add @nestjs/terminus</name>
+  <name>Task 1: Bump package.json versions (api + web), add @nestjs/terminus, fix jest rootDir</name>
   <read_first>
-    - apps/api/package.json (current pinned versions — must see exact strings before editing)
+    - apps/api/package.json (current pinned versions AND current jest config block — must see both before editing)
     - apps/web/package.json (current deps — must see framer-motion, tailwindcss ^3 to remove)
     - .planning/phases/01-foundation/01-RESEARCH.md (Standard Stack table — verified registry versions)
   </read_first>
@@ -370,6 +373,29 @@ OpenNext next.config.ts (from RESEARCH.md Pattern 4):
       "@nestjs/cli":        "^11.0.0"
       "@nestjs/schematics": "^11.0.0"
       "@nestjs/testing":    "^11.0.0"
+
+    JEST CONFIG FIX (same file — apps/api/package.json):
+    Locate the "jest" key in apps/api/package.json. Find the "rootDir" field (currently set to
+    "src") and change it to ".". Also add a "testPathIgnorePatterns" array if not present, with
+    the following entries:
+      "<rootDir>/dist/"
+      "<rootDir>/node_modules/"
+    This is required because Plan 11 places test files under apps/api/test/ (outside src/). With
+    rootDir="src", Jest's --testPathPattern cannot discover apps/api/test/*.spec.ts files at all.
+    Changing rootDir to "." makes the full package directory the search root, so both
+    src/**/*.spec.ts and test/**/*.spec.ts are discoverable.
+
+    The resulting jest config block should look like:
+    ```json
+    "jest": {
+      "rootDir": ".",
+      "testEnvironment": "node",
+      "testPathIgnorePatterns": ["<rootDir>/dist/", "<rootDir>/node_modules/"],
+      ...remaining fields unchanged...
+    }
+    ```
+    Preserve all other jest fields (transform, moduleNameMapper, coverageDirectory, etc.) exactly
+    as they are — only change rootDir and add testPathIgnorePatterns.
 
     Edit apps/web/package.json — update version strings:
 
@@ -404,6 +430,9 @@ OpenNext next.config.ts (from RESEARCH.md Pattern 4):
       # Verify api version strings
       grep '"@nestjs/core"' apps/api/package.json | grep '"\\^11'
       grep '"@nestjs/terminus"' apps/api/package.json
+      # Verify jest rootDir fix
+      grep '"rootDir"' apps/api/package.json | grep '"\\."'
+      grep 'testPathIgnorePatterns' apps/api/package.json
       # Verify web version strings
       grep '"next"' apps/web/package.json | grep '"\\^15'
       grep '"react"' apps/web/package.json | grep '"\\^19'
@@ -419,6 +448,8 @@ OpenNext next.config.ts (from RESEARCH.md Pattern 4):
   <acceptance_criteria>
     - apps/api/package.json contains "@nestjs/core": "^11 (exact: grep finds the string)
     - apps/api/package.json contains "@nestjs/terminus"
+    - apps/api/package.json jest config has "rootDir": "." (grep '"rootDir".*"\."' exits 0)
+    - apps/api/package.json jest config contains "testPathIgnorePatterns" with dist/ and node_modules/
     - apps/web/package.json contains "next": "^15
     - apps/web/package.json contains "react": "^19
     - apps/web/package.json contains "@apollo/client": "^4
@@ -430,7 +461,7 @@ OpenNext next.config.ts (from RESEARCH.md Pattern 4):
     - apps/web/package.json contains "wrangler"
     - pnpm install completes with exit code 0
   </acceptance_criteria>
-  <done>All package.json files updated to spec-target versions; pnpm install clean.</done>
+  <done>All package.json files updated to spec-target versions; jest rootDir fixed to '.'; pnpm install clean.</done>
 </task>
 
 <task type="auto" id="10-T2">
@@ -747,6 +778,7 @@ After all tasks complete, run from repo root:
   grep '"motion".*\^12' apps/web/package.json     # must match (no wildcard)
   test -f apps/api/eslint.config.mjs              # ESLint config exists
   test -f apps/web/eslint.config.mjs              # ESLint config exists
+  grep '"rootDir".*"\."' apps/api/package.json    # jest rootDir is '.'
 
 These confirm the version foundation is correct before wave 1.1 begins.
 </verification>
@@ -761,6 +793,7 @@ These confirm the version foundation is correct before wave 1.1 begins.
 7. prisma/seed.ts implements the demo dataset (not a stub)
 8. apps/api/eslint.config.mjs and apps/web/eslint.config.mjs exist and enforce real rules
 9. "motion" is pinned to "^12.0.0" in apps/web/package.json (no wildcard)
+10. apps/api/package.json jest config has rootDir "." and testPathIgnorePatterns excluding dist/ and node_modules/
 </success_criteria>
 
 <output>
@@ -770,4 +803,5 @@ After completion, create `.planning/phases/01-foundation/01-10-SUMMARY.md` docum
 - Confirmation that both typechecks passed
 - Whether seed.ts was adjusted to match prisma/schema.prisma field names
 - Which ESLint config pattern was used (unified typescript-eslint vs separate parser/plugin packages)
+- Confirmation that jest rootDir was changed to '.' in apps/api/package.json
 </output>
