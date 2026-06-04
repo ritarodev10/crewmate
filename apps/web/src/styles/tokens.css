@@ -84,6 +84,20 @@
   --space-12: 48px;
   --space-16: 64px;
 
+  /* Tailwind 4 spacing utilities — must use --spacing-* namespace so that
+     p-space-6, gap-space-4, space-y-space-6, m-space-8 etc. resolve correctly */
+  --spacing-space-0: 0px;
+  --spacing-space-1: 4px;
+  --spacing-space-2: 8px;
+  --spacing-space-3: 12px;
+  --spacing-space-4: 16px;
+  --spacing-space-5: 20px;
+  --spacing-space-6: 24px;
+  --spacing-space-8: 32px;
+  --spacing-space-10: 40px;
+  --spacing-space-12: 48px;
+  --spacing-space-16: 64px;
+
   /* ── Border radius ───────────────────────────────────────────────────────── */
   --radius-0: 0px;
   --radius-sm: 4px;
@@ -148,4 +162,31 @@
   --text-mono-size: 13px;
   --text-mono-line: 18px;
   --text-mono-weight: 500;
+
+  /* Tailwind 4 font-size utilities — must use --font-size-* namespace so that
+     text-display, text-h1, text-body, text-small, text-micro etc. resolve correctly.
+     Compound --font-size-NAME--line-height sets the line-height automatically. */
+  --font-size-display: 32px;
+  --font-size-display--line-height: 36px;
+
+  --font-size-h1: 24px;
+  --font-size-h1--line-height: 28px;
+
+  --font-size-h2: 18px;
+  --font-size-h2--line-height: 22px;
+
+  --font-size-h3: 15px;
+  --font-size-h3--line-height: 18px;
+
+  --font-size-body: 14px;
+  --font-size-body--line-height: 20px;
+
+  --font-size-small: 13px;
+  --font-size-small--line-height: 18px;
+
+  --font-size-micro: 11px;
+  --font-size-micro--line-height: 14px;
+
+  --font-size-mono: 13px;
+  --font-size-mono--line-height: 18px;
 }
