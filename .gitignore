@@ -47,6 +47,9 @@ prisma/*.db
 # Agent worktrees (see docs/execution/01-agent-workflow.md)
 .worktrees/
 
+# Fly.io
+.fly/
+
 # Terraform state (local Phase 1 — state is local, never committed)
 infrastructure/terraform/terraform.tfstate
 infrastructure/terraform/terraform.tfstate.backup

@@ -1,6 +1,6 @@
 # CrewMate — Claude Context
 
-Field service operations platform. NestJS 11 API + Next.js 15 web, deployed as a single domain on Cloudflare Workers (web) + AWS ECS Fargate (api). pnpm monorepo.
+Field service operations platform. NestJS 11 API + Next.js 15 web, deployed as a single domain on Cloudflare Workers (web) + Fly.io (api). pnpm monorepo.
 
 ## Read before touching any code
 
@@ -27,7 +27,7 @@ If `.task-brief.md` exists in your working directory, read it before anything el
 | API | NestJS 11, TypeScript strict, Prisma 6, PostgreSQL 17, Redis + BullMQ, Passport JWT, `@nestjs/graphql` code-first |
 | Web | Next.js 15 App Router, React 19, Tailwind 4, shadcn/ui, Apollo Client 4, TanStack Query 5, Zustand 5, Motion |
 | Shared | `@crewmate/contracts` (DTOs + GraphQL types), `@crewmate/ui` (tokens + components) |
-| Deploy | Cloudflare Workers via `@opennextjs/cloudflare`, AWS ECS Fargate behind private ALB |
+| Deploy | Cloudflare Workers via `@opennextjs/cloudflare` (web), Fly.io (api — `fly.toml` at repo root) |
 
 ## Monorepo layout
 

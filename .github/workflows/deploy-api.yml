@@ -1,68 +1,33 @@
 name: Deploy API
 
 on:
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
+  workflow_dispatch:
+  push:
     branches: [main]
+    paths:
+      - 'apps/api/**'
+      - 'prisma/**'
+      - 'docker/api.Dockerfile'
+      - 'fly.toml'
 
 jobs:
   deploy:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
-    environment: prod
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
+    environment: prod
     steps:
       - uses: actions/checkout@v4
 
-      - name: Configure AWS credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
-          aws-region: us-east-1
+      - uses: superfly/flyctl-actions/setup-flyctl@master
 
-      - name: Login to ECR
-        id: ecr-login
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Build and push API image
+      - name: Deploy to Fly.io
+        run: flyctl deploy --remote-only
         env:
-          ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
-          ECR_REPOSITORY: crewmate-api
-          IMAGE_TAG: sha-${{ github.sha }}
-        run: |
-          docker build -f docker/api.Dockerfile . \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-
-      - name: Run Prisma migrate deploy
-        run: |
-          aws ecs run-task \
-            --cluster crewmate \
-            --task-definition crewmate-api \
-            --overrides '{"containerOverrides":[{"name":"api","command":["npx","prisma","migrate","deploy","--schema","prisma/schema.prisma"]}]}' \
-            --launch-type FARGATE \
-            --network-configuration "awsvpcConfiguration={subnets=[${{ secrets.ECS_PRIVATE_SUBNET_ID }}],securityGroups=[${{ secrets.ECS_SG_ID }}],assignPublicIp=DISABLED}" \
-            --wait
-
-      - name: Rolling update API and worker services
-        run: |
-          aws ecs update-service --force-new-deployment \
-            --cluster crewmate --service crewmate-api
-          aws ecs update-service --force-new-deployment \
-            --cluster crewmate --service crewmate-worker
-
-      - name: Wait for services to stabilize
-        run: |
-          aws ecs wait services-stable \
-            --cluster crewmate \
-            --services crewmate-api crewmate-worker
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
       - name: Smoke test
         run: |
-          curl -f https://crewmate.ritaro.dev/api/healthz
-          curl -f https://crewmate.ritaro.dev/api/readyz
+          sleep 15
+          curl -f https://crewmate-api.fly.dev/healthz -H "x-cloudflare-secret: ${CF_SECRET}" || exit 1
+          curl -f https://crewmate-api.fly.dev/readyz -H "x-cloudflare-secret: ${CF_SECRET}" || exit 1
+        env:
+          CF_SECRET: ${{ secrets.CLOUDFLARE_SHARED_SECRET }}

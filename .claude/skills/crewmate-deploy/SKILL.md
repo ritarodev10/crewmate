@@ -1,72 +1,50 @@
 # crewmate-deploy
 
-You are the infrastructure and deploy agent for CrewMate. Before touching any IaC or deploy config, read:
+You are the deployment engineer for CrewMate. The stack deploys to two targets:
 
-1. `docs/AGENT-SETUP.md` — accounts, credentials, what's already provisioned, what blocks each phase
-2. `docs/BUILD.md` (layer 12) — full deploy architecture: Terraform modules, Wrangler config, GitHub Actions workflows, smoke tests
-3. `docs/guardrails/shared/03-security.md` — shared secret enforcement, IP allowlist, no secrets in code
+- **Web**: Cloudflare Workers via `@opennextjs/cloudflare` + `wrangler deploy`
+- **API**: Fly.io via `flyctl deploy` (`fly.toml` at repo root)
 
-Then invoke the `cloudflare-deploy` skill for anything touching Wrangler, `wrangler.toml`, or the Worker proxy.
+## Fly.io deploy (API)
 
-Then read your `.task-brief.md` if present.
+Prerequisites the user must complete once:
+1. `brew install flyctl && fly auth login`
+2. `fly launch --no-deploy` (sets up app + Postgres)
+3. Set secrets: `fly secrets set JWT_ACCESS_SECRET=... JWT_REFRESH_SECRET=... WEBHOOK_SIGNING_SECRET=... CLOUDFLARE_SHARED_SECRET=...`
+4. Set up Upstash Redis (free tier at upstash.com), then: `fly secrets set REDIS_URL=rediss://...`
+5. Add `FLY_API_TOKEN` and `CLOUDFLARE_SHARED_SECRET` to GitHub repo secrets
 
-## Architecture in one paragraph
-
-Single public domain `https://crewmate.ritaro.dev`. A Cloudflare Worker serves the Next.js app and reverse-proxies `/api/*`, `/v1/*`, `/graphql`, `/ws` to the AWS ALB. The ALB has no public domain — reachable only via its AWS-issued DNS name. Caller authenticity is enforced two ways: the Worker injects `x-cloudflare-secret` on every proxied request, and the ALB security group ingress is restricted to Cloudflare's IP ranges.
-
-## Terraform modules
-
-```
-infrastructure/terraform/
-├── network/    VPC, subnets, NAT, security groups (Cloudflare IP allowlist on ALB)
-├── data/       RDS Postgres 17, ElastiCache Redis 7, S3
-├── secrets/    Secrets Manager entries, IAM task roles
-└── compute/    ECS cluster, api + worker services, task definitions, ALB
-```
-
-No `edge` module. No ACM certificate for a custom api subdomain. State backend in S3 + DynamoDB lock.
-
-## Cloudflare side
-
-```
-apps/web/wrangler.toml              Worker config and routes
-apps/web/src/worker/proxy.ts        Proxy handler — forwards /api/*, /v1/*, /graphql, /ws to BACKEND_ORIGIN
-```
-
-Wrangler secrets (set via `wrangler secret put`, never committed):
-- `BACKEND_ORIGIN` — the ALB's AWS-issued DNS name
-- `CLOUDFLARE_SHARED_SECRET` — mirrored in AWS Secrets Manager
-
-## GitHub Actions workflows
-
-```
-.github/workflows/deploy-api.yml    OIDC to AWS, builds api image, ECR push, migrate, rolling update
-.github/workflows/deploy-web.yml    Cloudflare API token, opennextjs-cloudflare build, wrangler deploy
-```
-
-Both gated by manual approval on the GitHub `prod` environment. Never skip the gate.
-
-## AWS credentials on this machine
-
-Profile `crewmate` in `~/.aws/credentials`. Use `AWS_PROFILE=crewmate aws ...` for any manual aws commands.
-
-## What you must never do unprompted
-
-- `terraform apply` or `terraform destroy` without explicit approval
-- `wrangler secret put` without showing the value and asking
-- Add AWS resources that incur cost without flagging the amount first
-- Push to `main` or merge without a reviewed PR
-- Touch `~/.aws/credentials` or any global config
-
-## Smoke tests after any deploy
-
+Ongoing deploy (CI handles this via `.github/workflows/deploy-api.yml`):
 ```bash
-curl https://crewmate.ritaro.dev                         # returns login page HTML
-curl https://crewmate.ritaro.dev/api/healthz             # returns 200
-curl https://crewmate.ritaro.dev/api/readyz              # returns 200
-curl <alb-direct-url>/healthz                            # returns 401 (no shared secret)
+flyctl deploy --remote-only
+```
+Migrations run automatically via `release_command = "npx prisma migrate deploy"` in `fly.toml`.
+
+## Cloudflare Workers deploy (web)
+
+Prerequisites the user must complete once:
+1. Generate Cloudflare API token (Workers:Edit + Zone:Edit on ritaro.dev)
+2. `cd apps/web && wrangler secret put BACKEND_ORIGIN` → enter `https://crewmate-api.fly.dev`
+3. `wrangler secret put CLOUDFLARE_SHARED_SECRET` → enter same value as Fly.io secret
+
+Ongoing deploy (CI handles this via `.github/workflows/deploy-web.yml`):
+```bash
+cd apps/web && pnpm build && opennextjs-cloudflare build && wrangler deploy
 ```
 
-## MCP available
+## Smoke tests (run after any deploy)
+```bash
+curl -f https://crewmate.ritaro.dev                     # web placeholder
+curl -f https://crewmate.ritaro.dev/api/healthz         # API via Worker proxy
+curl -f https://crewmate.ritaro.dev/api/readyz          # API health + DB + Redis
+# Direct Fly.io without secret → must 401
+curl -I https://crewmate-api.fly.dev/healthz            # expect 401
+```
 
-- `context7` — Terraform HCL, `@opennextjs/cloudflare`, Wrangler v4 docs.
+## GitHub Secrets needed
+- `FLY_API_TOKEN` — from `fly tokens create deploy`
+- `CLOUDFLARE_API_TOKEN` — from Cloudflare Dashboard → API Tokens
+- `CLOUDFLARE_SHARED_SECRET` — shared value between Worker and API
+
+## Infrastructure reference
+`infrastructure/terraform/` contains production-grade AWS IaC (ECS Fargate + RDS + ElastiCache + ALB) as a portfolio artifact. It is not applied to any live environment. To provision AWS infrastructure in a future phase, run `AWS_PROFILE=crewmate terraform -chdir=infrastructure/terraform apply`.
