@@ -35,20 +35,20 @@ All requirements derived from `docs/FEATURES.md`. Every F-NNN feature is on the 
 ### DISPATCH — Dispatch board and real-time assignment
 
 - [ ] **DISPATCH-01** (F-030): WebSocket gateway authenticates clients using the same JWT as REST; each connected socket joins a `tenant:<operatorId>` room; scope-aware filtering sends only relevant events to each coordinator
-- [ ] **DISPATCH-02** (F-031): Dispatch board at `/dispatch` renders a four-column kanban (SCHEDULED, EN ROUTE, IN PROGRESS, COMPLETED); VERIFIED jobs roll off after a configurable delay; cards show property, worker, and time chip
+- [x] **DISPATCH-02** (F-031): Dispatch board at `/dispatch` renders a four-column kanban (SCHEDULED, EN ROUTE, IN PROGRESS, COMPLETED); VERIFIED jobs roll off after a configurable delay; cards show property, worker, and time chip
 - [ ] **DISPATCH-03** (F-031): Dispatch board receives real-time job status updates via WebSocket subscriptions; two coordinators with different scopes see only their own events
-- [ ] **DISPATCH-04** (F-032): Clicking a job card opens a right-side drawer (480px desktop / full-width mobile) with header, horizontal stepper, key-value details, activity timeline, and primary actions (Mark Completed, Reassign)
+- [x] **DISPATCH-04** (F-032): Clicking a job card opens a right-side drawer (480px desktop / full-width mobile) with header, horizontal stepper, key-value details, activity timeline, and primary actions (Mark Completed, Reassign)
 - [ ] **DISPATCH-05** (F-033): Job transitions update the Apollo/TanStack cache immediately (optimistic); server rejection triggers a rollback Toast with the server's reason verbatim
 
 ### SCHED — Scheduling and calendar
 
-- [ ] **SCHED-01** (F-050): Schedule view at `/schedule` renders workers in rows and days in columns; each scheduled job is an event block; overflow shows "+N more" when a day has multiple jobs per worker
-- [ ] **SCHED-02** (F-050): Schedule view supports week navigation (prev, next, Today jump) and worker/property filters
+- [x] **SCHED-01** (F-050): Schedule view at `/schedule` renders workers in rows and days in columns; each scheduled job is an event block; overflow shows "+N more" when a day has multiple jobs per worker
+- [x] **SCHED-02** (F-050): Schedule view supports week navigation (prev, next, Today jump) and worker/property filters
 - [ ] **SCHED-03** (F-025): Schedule materialization is idempotent — running the same `from`/`to` window twice produces no duplicate jobs
 
 ### WORKER — Technician mobile experience
 
-- [ ] **WORKER-01** (F-040): Worker today view at `/today` shows a date strip (7 days, today highlighted) and a vertical list of today's jobs ordered by scheduled start; card states: scheduled, in progress, completed, cancelled
+- [x] **WORKER-01** (F-040): Worker today view at `/today` shows a date strip (7 days, today highlighted) and a vertical list of today's jobs ordered by scheduled start; card states: scheduled, in progress, completed, cancelled
 - [ ] **WORKER-02** (F-041): Each active job card has a full-width primary action button with a minimum 44px tap target; tapping moves the job through the state machine with optimistic UI
 
 ### EVENTS — Real-time events and webhooks
@@ -58,7 +58,7 @@ All requirements derived from `docs/FEATURES.md`. Every F-NNN feature is on the 
 - [ ] **EVENTS-03** (F-060): Tenant admin can create, read, update, and delete webhook endpoints; each endpoint has a per-endpoint HMAC signing secret generated on create, shown once, hashed at rest, and rotatable; endpoints can be paused
 - [ ] **EVENTS-04** (F-061): BullMQ `webhook-delivery` worker signs each outgoing payload with `x-crewmate-signature: t=<ts>,v1=<sig>` and POSTs to the endpoint; every attempt persists a row in `webhook_deliveries` with status, response code, latency, and attempt count
 - [ ] **EVENTS-05** (F-062): Failed webhook deliveries are retried on exponential backoff (1m, 5m, 25m, 2h, 12h); after 5 attempts the delivery is marked FAILED and `webhook.delivery.failed` event is emitted
-- [ ] **EVENTS-06** (F-063): Webhook deliveries log at `/webhooks` shows a Stripe-style table (status pill, event, endpoint, attempt, timestamp, latency); selecting a row opens a detail panel with raw signed payload and headers; `Retry failed` action re-enqueues
+- [x] **EVENTS-06** (F-063): Webhook deliveries log at `/webhooks` shows a Stripe-style table (status pill, event, endpoint, attempt, timestamp, latency); selecting a row opens a detail panel with raw signed payload and headers; `Retry failed` action re-enqueues
 - [ ] **EVENTS-07** (F-070): System sends transactional email via Resend in production and MailHog locally; provider is selected by `NODE_ENV`; `RESEND_API_KEY` stored in env; single sender domain `crewmate.ritaro.dev`
 - [ ] **EVENTS-08** (F-071): System renders `worker.invited` and `password.reset` email templates via React Email; optional `webhook.delivery.failed.digest` daily roll-up template
 
@@ -70,17 +70,17 @@ All requirements derived from `docs/FEATURES.md`. Every F-NNN feature is on the 
 - [ ] **TEAM-04** (F-013): Three scope shapes per grant — `tenant`, `region`, `property_list`; coordinator scoped to a region sees exactly those properties on `/dispatch`
 - [ ] **TEAM-05** (F-014): Named policy registry (`canTransitionJob`, `canAssignWorker`, `canEditCustomRole`, etc.) returns `Allow` or `Deny(reason)`; reason surfaces in API error body and UI Toast copy
 - [ ] **TEAM-06** (F-015): Every authorization decision (allow and deny) writes a row to `permission_audits` with `request_id`, `actor_user_id`, `action`, `subject`, `subject_id`, `decision`, `reason`, `created_at`; retained 90 days
-- [ ] **TEAM-07** (F-016): Audit log at `/settings/audit` is filterable by date range, actor, subject type, and decision; row click opens a detail Drawer; CSV export downloads a valid file with matching rows
-- [ ] **TEAM-08** (F-090): Team members list at `/settings/team` shows avatar, name, email, RolePill, scope chips, and last-active; row click opens member Drawer
-- [ ] **TEAM-09** (F-091): Invite member dialog accepts email (required), name (optional), role (built-in or custom), and scope (dependent on role); submitting shows a success Toast
-- [ ] **TEAM-10** (F-092): Member Drawer shows grants (role, scope, granted by, granted at), recent audit rows, and notification preferences; actions: Change role, Adjust scope, Revoke access
-- [ ] **TEAM-11** (F-093): Custom role creation UI at `/settings/team/roles` shows built-in roles read-only and custom roles as cards; "New role" dialog has a permissions matrix (action × subject checkboxes)
+- [x] **TEAM-07** (F-016): Audit log at `/settings/audit` is filterable by date range, actor, subject type, and decision; row click opens a detail Drawer; CSV export downloads a valid file with matching rows
+- [x] **TEAM-08** (F-090): Team members list at `/settings/team` shows avatar, name, email, RolePill, scope chips, and last-active; row click opens member Drawer
+- [x] **TEAM-09** (F-091): Invite member dialog accepts email (required), name (optional), role (built-in or custom), and scope (dependent on role); submitting shows a success Toast
+- [x] **TEAM-10** (F-092): Member Drawer shows grants (role, scope, granted by, granted at), recent audit rows, and notification preferences; actions: Change role, Adjust scope, Revoke access
+- [x] **TEAM-11** (F-093): Custom role creation UI at `/settings/team/roles` shows built-in roles read-only and custom roles as cards; "New role" dialog has a permissions matrix (action × subject checkboxes)
 
 ### SETTINGS — Settings and configuration
 
-- [ ] **SETTINGS-01** (F-100): User can view and edit profile (avatar, name, password change, 2FA management, language, timezone); "Sign out from all devices" action revokes all refresh token families
-- [ ] **SETTINGS-02** (F-101): Tenant admin can view operator name/slug, set timezone default and default job duration, and trigger a multi-step operator delete requiring the slug typed verbatim
-- [ ] **SETTINGS-03** (F-072): User can toggle per-notification-kind email preferences at `/settings/notifications`; toggles persist through the API and are read by the Resend send paths
+- [x] **SETTINGS-01** (F-100): User can view and edit profile (avatar, name, password change, 2FA management, language, timezone); "Sign out from all devices" action revokes all refresh token families
+- [x] **SETTINGS-02** (F-101): Tenant admin can view operator name/slug, set timezone default and default job duration, and trigger a multi-step operator delete requiring the slug typed verbatim
+- [x] **SETTINGS-03** (F-072): User can toggle per-notification-kind email preferences at `/settings/notifications`; toggles persist through the API and are read by the Resend send paths
 
 ### INFRA — Infrastructure and deployment
 

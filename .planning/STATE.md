@@ -4,20 +4,20 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 01
 status: unknown
-last_updated: "2026-06-04T09:25:43.708Z"
+last_updated: "2026-06-04T13:27:08.339Z"
 progress:
   total_phases: 5
   completed_phases: 1
-  total_plans: 5
-  completed_plans: 5
+  total_plans: 9
+  completed_plans: 6
 ---
 
 # CrewMate — Project State
 
-**Last updated:** 2026-06-04T09:24:33Z
-**Current phase:** 01
-**Phase status:** In Progress — Wave 4 IaC complete (portfolio artifact); awaiting Fly.io account setup (T3)
-**Active plan:** 01-14 T1a+T1b+T2 complete; awaiting human action for Fly.io setup (T3)
+**Last updated:** 2026-06-04T13:30:00Z
+**Current phase:** 02
+**Phase status:** In Progress — Wave 2.0 complete (design tokens, fixtures, MSW setup)
+**Active plan:** 02-20 complete; next: 02-21 (Wave 2.1 app shell)
 **Session:** 2026-06-04
 
 ---
@@ -27,7 +27,7 @@ progress:
 | Phase | Status | Plans | Started | Completed |
 |-------|--------|-------|---------|-----------|
 | 1 — Foundation | In Progress | 5/5 plans; Terraform IaC committed (portfolio artifact), deployment target is Fly.io; pending T3+T4 | 2026-06-04 | — |
-| 2 — UI Screens | Not Started | — | — | — |
+| 2 — UI Screens | In Progress | 1/1 Wave 2.0 plan complete; design tokens + fixtures + MSW foundation ready | 2026-06-04 | — |
 | 3 — Backend API | Not Started | — | — | — |
 | 4 — Integration | Not Started | — | — | — |
 | 5 — Polish | Not Started | — | — | — |
@@ -36,13 +36,13 @@ progress:
 
 ## Current Focus
 
-**Phase 1: Foundation**
+**Phase 2: UI Screens**
 
-Goal: Monorepo scaffold + skeleton deploy to crewmate.ritaro.dev live
+Goal: All 14 screens rendered against fixture data, tsc clean
 
-Requirements in scope: INFRA-01, INFRA-02, INFRA-03, INFRA-04, INFRA-05, INFRA-06
+Requirements in scope: DISPATCH-02, DISPATCH-04, SCHED-01, SCHED-02, WORKER-01, EVENTS-06, TEAM-07–TEAM-11, SETTINGS-01–SETTINGS-03
 
-Next action: Human completes Fly.io account setup (T3): brew install flyctl, fly launch --no-deploy, fly secrets set, fly tokens create deploy → GitHub Secret, wrangler secret put BACKEND_ORIGIN + CLOUDFLARE_SHARED_SECRET. Type "fly ready" to resume.
+Wave 2.0 complete. Next: Wave 2.1 (app shell, sidebar, topbar, shared components, auth guard).
 
 ---
 
@@ -50,6 +50,10 @@ Next action: Human completes Fly.io account setup (T3): brew install flyctl, fly
 
 ### Key Decisions
 
+- Plan 02-20 complete: Apollo Client v4 requires ApolloProvider from @apollo/client/react (not @apollo/client root); HttpLink required in constructor (uri shorthand removed)
+- Plan 02-20 complete: msw@^2.0.0, react-hook-form@^7.53.0, @hookform/resolvers@^3.9.0 added (all MIT, zero SaaS fees); flagged per CLAUDE.md
+- Plan 02-20 complete: Tailwind 4 CSS-native @theme block in tokens.css generates utilities directly; tailwind.config.ts kept minimal (content paths only)
+- Plan 02-20 complete: tokens.css uses dual names (--color-bone raw + --color-canvas role-mapped) for full Tailwind utility coverage (bg-canvas, text-canvas, etc.)
 - Plan 01-10 complete: Used separate @typescript-eslint/parser + plugin packages (not unified typescript-eslint) for api ESLint flat config
 - Plan 01-10 complete: next.config.ts uses export default (Next.js framework requirement; CLAUDE.md carve-out)
 - Plan 01-10 complete: seed.ts schema fields corrected to match prisma/schema.prisma (no role on User, WebhookEndpoint uses secret/isActive/events)
@@ -88,6 +92,7 @@ Plan 01-14 T2: fly.toml created; deploy-api.yml updated to use flyctl deploy --r
 STOPPED at T3 checkpoint — human must complete Fly.io account setup before first deploy can run.
 
 To continue:
+
 1. brew install flyctl && fly auth login
 2. fly launch --no-deploy  (from repo root — accept crewmate-api name + Fly Postgres)
 3. fly secrets set REDIS_URL=<upstash-rediss-url> JWT_ACCESS_SECRET=<64-char-hex> JWT_REFRESH_SECRET=<64-char-hex> WEBHOOK_SIGNING_SECRET=<64-char-hex> CLOUDFLARE_SHARED_SECRET=<64-char-hex>
