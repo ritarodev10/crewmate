@@ -10,5 +10,5 @@ zone_name = "ritaro.dev"
 [vars]
 NEXT_PUBLIC_API_URL = "https://api.crewmate.ritaro.dev"
 
-[[build]]
+[build]
 command = "pnpm --filter web build"

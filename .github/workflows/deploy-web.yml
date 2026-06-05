@@ -33,10 +33,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build web
+      - name: Build Next.js
         run: pnpm --filter web build
         env:
           NEXT_PUBLIC_API_URL: https://api.crewmate.ritaro.dev
+
+      - name: Build Cloudflare Worker
+        run: pnpm --filter web build:worker
 
       - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3
