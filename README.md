@@ -24,6 +24,46 @@ The demo is pre-loaded with **CrewMate Demo SpA**, a Milan-based field service c
 
 ---
 
+## Navigation
+
+```
+┌─────────────────────────────────────┐
+│  ⬡  CrewMate                        │
+├─────────────────────────────────────┤
+│                                     │
+│  OPERATIONS                         │
+│  ├  🏠  Dashboard            ✅ live │
+│  ├  🗂️   Jobs                 ✅ live │
+│  ├  📅  Schedule             🔜 soon │
+│  └  🗺️   Dispatch             🔜 soon │
+│                                     │
+│  WORKFORCE                          │
+│  ├  👷  Workers              ✅ live │
+│  ├  👥  Teams                🔜 soon │
+│  └  🏢  Customers            🔜 soon │
+│                                     │
+│  FINANCE                            │
+│  ├  💰  Revenue              ✅ live │
+│  ├  🧾  Invoices             🔜 soon │
+│  └  💳  Payroll              🔜 soon │
+│                                     │
+│  INSIGHTS                           │
+│  ├  📊  Reports              🔜 soon │
+│  └  📈  Performance          🔜 soon │
+│                                     │
+├─────────────────────────────────────┤
+│  SYSTEM                             │
+│  ├  🔗  Integrations         🔜 soon │
+│  ├  ⚙️   Settings             🔜 soon │
+│  └  📋  Audit Log            🔜 soon │
+│                                     │
+│  ● Marco Bianchi  Manager           │
+│    [ Logout ]                       │
+└─────────────────────────────────────┘
+```
+
+---
+
 ## Login
 
 Go to [crewmate.ritaro.dev/login](https://crewmate.ritaro.dev/login).
