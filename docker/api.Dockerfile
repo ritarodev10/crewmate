@@ -7,7 +7,7 @@ WORKDIR /app
 
 # Stage 2: deps — install all workspace dependencies
 FROM base AS deps
-COPY pnpm-workspace.yaml .npmrc package.json ./
+COPY pnpm-workspace.yaml .npmrc package.json pnpm-lock.yaml ./
 COPY apps/api/package.json ./apps/api/
 COPY prisma/schema.prisma ./prisma/
 RUN pnpm install --frozen-lockfile --filter api...
