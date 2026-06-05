@@ -23,6 +23,7 @@ FROM base AS runner
 ENV NODE_ENV=production
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
+COPY --from=builder /app/apps/api/node_modules/.prisma ./apps/api/node_modules/.prisma
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=deps /app/prisma ./prisma
 EXPOSE 6201
