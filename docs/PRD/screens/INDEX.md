@@ -13,7 +13,7 @@ docs/PRD/screens/
   01-login.md               ← /login
   02-dashboard.md           ← /dashboard
   03-jobs-kanban.md         ← /jobs
-  04-workers.md             ← /workers
+  04-workers.md             ← /workforce  (Workers tab + Teams tab)
   05-revenue.md             ← /revenue
   06-worker-home.md         ← /worker  (mobile)
   07-worker-job-card.md     ← /worker/jobs/:id  (mobile)
@@ -22,22 +22,96 @@ docs/PRD/screens/
 
 ---
 
+## Route Table
+
+| Route            | Screen / Notes                                    | Status   |
+|------------------|---------------------------------------------------|----------|
+| /login           | Login                                             | ✅ live  |
+| /dashboard       | Dashboard                                         | ✅ live  |
+| /jobs            | Jobs Kanban                                       | ✅ live  |
+| /workforce       | Workforce — Workers tab + Teams tab               | ✅ live  |
+| /revenue         | Revenue                                           | ✅ live  |
+| /worker          | Worker Home (mobile)                              | ✅ live  |
+| /worker/jobs/:id | Worker Job Card (mobile)                          | ✅ live  |
+| /schedule        | Schedule (coming soon)                            | 🔜 soon  |
+| /dispatch        | Dispatch Board (coming soon)                      | 🔜 soon  |
+| /customers       | Customers (coming soon)                           | 🔜 soon  |
+| /invoices        | Invoices (coming soon)                            | 🔜 soon  |
+| /payroll         | Payroll (coming soon)                             | 🔜 soon  |
+| /reports         | Reports — MANAGER/SUPER_ADMIN only (coming soon)  | 🔜 soon  |
+| /performance     | Performance — MANAGER/SUPER_ADMIN only (coming soon) | 🔜 soon |
+| /integrations    | Integrations (coming soon)                        | 🔜 soon  |
+| /settings        | Settings (coming soon)                            | 🔜 soon  |
+| /audit           | Audit Log (coming soon)                           | 🔜 soon  |
+
+---
+
 ## Role → Screen Access
 
-| Screen | SUPER_ADMIN | MANAGER | TEAM_LEAD | WORKER |
-|---|---|---|---|---|
-| /login | ✅ | ✅ | ✅ | ✅ |
-| /dashboard | ✅ | ✅ | ✅ (team only) | ❌ |
-| /jobs | ✅ | ✅ | ✅ (team only) | ❌ |
-| /workers | ✅ | ✅ | ❌ | ❌ |
-| /revenue | ✅ | ✅ | ❌ | ❌ |
-| /worker | ❌ | ❌ | ✅ | ✅ |
-| /worker/jobs/:id | ❌ | ❌ | ✅ | ✅ |
+| Screen         | SUPER_ADMIN | MANAGER | TEAM_LEAD        | WORKER |
+|----------------|-------------|---------|------------------|--------|
+| /login         | ✅          | ✅      | ✅               | ✅     |
+| /dashboard     | ✅          | ✅      | ✅ (team only)   | ❌     |
+| /jobs          | ✅          | ✅      | ✅ (team only)   | ❌     |
+| /workforce     | ✅          | ✅      | ✅ (read-only)   | ❌     |
+| /revenue       | ✅          | ✅      | ✅               | ❌     |
+| /schedule      | 🔜          | 🔜      | 🔜               | ❌     |
+| /dispatch      | 🔜          | 🔜      | ❌               | ❌     |
+| /customers     | 🔜          | 🔜      | ❌               | ❌     |
+| /invoices      | 🔜          | 🔜      | ❌               | ❌     |
+| /payroll       | 🔜          | 🔜      | ❌               | ❌     |
+| /reports       | 🔜          | 🔜      | ❌               | ❌     |
+| /performance   | 🔜          | 🔜      | ❌               | ❌     |
+| /integrations  | 🔜          | 🔜      | ❌               | ❌     |
+| /settings      | 🔜          | 🔜      | ❌               | ❌     |
+| /audit         | 🔜          | 🔜      | ❌               | ❌     |
+| /worker        | ❌          | ❌      | ✅               | ✅     |
+| /worker/jobs/:id | ❌        | ❌      | ✅               | ✅     |
 
 Post-login redirect:
 - SUPER_ADMIN / MANAGER → /dashboard
 - TEAM_LEAD → /dashboard (data scoped to their team)
 - WORKER → /worker
+
+TEAM_LEAD access notes:
+- `/workforce`: Workers tab shows only "My Team" sub-tab (read-only). Teams tab is read-only.
+- `/revenue`: Read access only (no mutations).
+
+---
+
+## Sidebar Nav Structure
+
+```
+OPERATIONS
+  ⊞  Dashboard         /dashboard      ✅ live
+  📋  Jobs             /jobs           ✅ live
+  📅  Schedule         /schedule       🔜 soon
+  📍  Dispatch         /dispatch       🔜 soon
+
+WORKFORCE
+  👥  Workforce        /workforce      ✅ live   ← Workers + Teams tabs
+  🏢  Customers        /customers      🔜 soon
+
+FINANCE
+  📈  Revenue          /revenue        ✅ live
+  🧾  Invoices         /invoices       🔜 soon
+  💳  Payroll          /payroll        🔜 soon
+
+INSIGHTS  (MANAGER / SUPER_ADMIN only)
+  📊  Reports          /reports        🔜 soon
+  📉  Performance      /performance    🔜 soon
+
+─── (divider) ───
+SYSTEM
+  🔌  Integrations     /integrations   🔜 soon
+  ⚙️   Settings         /settings       🔜 soon
+  📜  Audit Log        /audit          🔜 soon
+
+Role visibility:
+  WORKER: no sidebar (mobile view only)
+  TEAM_LEAD: Operations + Workforce + Revenue only. No Insights, no System.
+  MANAGER / SUPER_ADMIN: all items
+```
 
 ---
 
@@ -84,15 +158,15 @@ Roles: MANAGER, ADMIN (full) · TEAM_LEAD (team-scoped)
 │ [C] CrewMate  │  Dashboard   🔍 Search...              [+ New Job]   │
 ├───────────────┼──────────────────────────────────────────────────────┤
 │               │                                                       │
-│  Dashboard ◀  │  ┌──────────┐┌──────────┐  ┌────────────────────┐  │
-│  Jobs         │  │Total Jobs││ Active   │  │                    │  │
-│  Workers      │  │  142  ↑12%│ Workers  │  │   MAPBOX MAP       │  │
-│  Revenue      │  └──────────┘│  38  ↑5% │  │   (satellite)      │  │
-│               │  ┌──────────┘└──────────┘  │   Milan, Italy     │  │
-│               │  │On-Time % ││ Revenue  │  │                    │  │
+│  OPERATIONS   │  ┌──────────┐┌──────────┐  ┌────────────────────┐  │
+│  Dashboard ◀  │  │Total Jobs││ Active   │  │                    │  │
+│  Jobs         │  │  142  ↑12%│ Workers  │  │   MAPBOX MAP       │  │
+│               │  └──────────┘│  38  ↑5% │  │   (satellite)      │  │
+│  WORKFORCE    │  ┌──────────┘└──────────┘  │   Milan, Italy     │  │
+│  Workforce    │  │On-Time % ││ Revenue  │  │                    │  │
 │               │  │  94%  ↑4% │ €7,020  ↑8%│  🔵🟠🟢 pins       │  │
-│               │  └──────────┘└──────────┘  │  (click → drawer)  │  │
-│               │                             │                    │  │
+│  FINANCE      │  └──────────┘└──────────┘  │  (click → drawer)  │  │
+│  Revenue      │                             │                    │  │
 │               │  Live Activity    View all  │  [Status filters]  │  │
 │               │  ┌─────────────────────── ┐ │  🟢74 🟠22 🔵27   │  │
 │               │  │ ✓ Marco  completed job │ └────────────────────┘  │
@@ -100,7 +174,6 @@ Roles: MANAGER, ADMIN (full) · TEAM_LEAD (team-scoped)
 │               │  │ ↑ Luca   progress 75%  │                         │
 │               │  │ ✕ J-020  cancelled     │                         │
 │               │  └────────────────────────┘                         │
-│               │                                                       │
 │  [JD] ──────  │                                                       │
 └───────────────┴───────────────────────────────────────────────────────┘
 ```
@@ -120,22 +193,19 @@ Roles: MANAGER, ADMIN (all jobs) · TEAM_LEAD (team jobs only)
 │ [C] CrewMate  │  Jobs         🔍 Search...              [+ New Job]  │
 ├───────────────┼──────────────────────────────────────────────────────┤
 │               │  ┌──────────┐┌──────────┐┌──────────┐┌──────────┐  │
-│  Dashboard    │  │ Total 40 ││Sched  12 ││In Prog 8 ││Done   15 │  │
-│  Jobs  ◀      │  └──────────┘└──────────┘└──────────┘└──────────┘  │
-│  Workers      │                                                       │
-│  Revenue      │  Filter: [Worker ▾] [Job Type ▾]                     │
-│               │                                                       │
-│               │  ┌──────────┐┌──────────┐┌──────────┐┌──────────┐  │
+│  OPERATIONS   │  │ Total 40 ││Sched  12 ││In Prog 8 ││Done   15 │  │
+│  Dashboard    │  └──────────┘└──────────┘└──────────┘└──────────┘  │
+│  Jobs  ◀      │                                                       │
+│               │  Filter: [Worker ▾] [Job Type ▾]                     │
+│  WORKFORCE    │                                                       │
+│  Workforce    │  ┌──────────┐┌──────────┐┌──────────┐┌──────────┐  │
 │               │  │SCHEDULED ││IN PROGRES││COMPLETED ││CANCELLED │  │
-│               │  │  12  🔵  ││  8   🟠  ││  15  🟢  ││  5   ⚫  │  │
-│               │  ├──────────┤├──────────┤├──────────┤├──────────┤  │
+│  FINANCE      │  │  12  🔵  ││  8   🟠  ││  15  🟢  ││  5   ⚫  │  │
+│  Revenue      │  ├──────────┤├──────────┤├──────────┤├──────────┤  │
 │               │  │[J-014]   ││[J-009]   ││[J-001]   ││[J-019]   │  │
 │               │  │HVAC Repr ││Elec Panel││AC Install││Elec Panel│  │
 │               │  │Fondazione││PortaRoman││UniCredit ││Brera     │  │
 │               │  │14:00     ││◉ 75%     ││★★★★★    ││✕ Cust.  │  │
-│               │  │[J-015]   ││[J-010]   ││[J-002]   ││[J-020]   │  │
-│               │  │AC Install││HVAC Maint││HVAC Maint││HVAC Maint│  │
-│               │  │...       ││◉ 50%     ││★★★★★    ││✕ Equip. │  │
 │               │  └──────────┘└──────────┘└──────────┘└──────────┘  │
 └───────────────┴───────────────────────────────────────────────────────┘
                                            ↓ click any card
@@ -149,25 +219,29 @@ Kanban cards move columns live via WebSocket on status change.
 
 ---
 
-## Screen 4 — Workers `/workers`
+## Screen 4 — Workforce `/workforce`
 
 → [04-workers.md](./04-workers.md)
 
-Roles: MANAGER, ADMIN
+Roles: MANAGER, ADMIN (full) · TEAM_LEAD (read-only, team scoped)
+
+Two tabs: [Workers] [Teams]
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│ [C] CrewMate  │  Workers        🔍 Search...                         │
+│ [C] CrewMate  │  Workforce      🔍 Search...                         │
 ├───────────────┼──────────────────────────────────────────────────────┤
-│               │  ┌──────────┐┌──────────┐┌──────────┐┌──────────┐  │
+│               │                          [Workers] [Teams]  ← tabs  │
+│  OPERATIONS   │  ┌──────────┐┌──────────┐┌──────────┐┌──────────┐  │
 │  Dashboard    │  │ Total  9 ││On Job  6 ││Done Tdy 8││Avg €X   │  │
 │  Jobs         │  └──────────┘└──────────┘└──────────┘└──────────┘  │
-│  Workers  ◀   │                                                       │
-│  Revenue      │  [All Workers] [Team Alfa]   tabs                    │
 │               │                                                       │
+│  WORKFORCE    │  [All Workers] [Team Alfa]   sub-tabs (Workers tab)  │
+│  Workforce ◀  │                                                       │
 │               │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐│
-│               │  │ 🔧 Luca F.   │ │ 👤 Sofia C.  │ │ 👤 Davide R. ││
-│               │  │ TEAM_LEAD    │ │ TEAM_MEMBER  │ │ TEAM_MEMBER  ││
+│  FINANCE      │  │ 🔧 Luca F.   │ │ 👤 Sofia C.  │ │ 👤 Davide R. ││
+│  Revenue      │  │ TEAM_LEAD    │ │ TEAM_MEMBER  │ │ TEAM_MEMBER  ││
+│               │  │ Team Alfa    │ │ Team Alfa    │ │ Team Alfa    ││
 │               │  │ 🟢 ON JOB   │ │ 🟢 ON JOB   │ │ 🟢 ON JOB   ││
 │               │  │ 5/8 jobs    │ │ 3/5 jobs    │ │ 3/5 jobs    ││
 │               │  │ €136 earned │ │ €100 earned │ │ €100 earned ││
@@ -182,9 +256,21 @@ Roles: MANAGER, ADMIN
                      │ [Today][Week][Month][All]   │
                      │ jobs list + earnings tabs   │
                      └─────────────────────────────┘
+
+Teams tab:
+┌──────────────────────────────────────────────────────────────────────┐
+│               │  Teams                              [Add Team]       │
+│               │                                                       │
+│               │  ┌───────────────────────┐  ┌─────────────────────┐ │
+│               │  │  Team Alfa        [→] │  │  (no more teams)    │ │
+│               │  │  ● Luca Ferrari (Lead)│  │                     │ │
+│               │  │  [av][av][av]+1       │  │                     │ │
+│               │  │  4 members · 3 on job │  │                     │ │
+│               │  └───────────────────────┘  └─────────────────────┘ │
+└───────────────┴───────────────────────────────────────────────────────┘
 ```
 
-Worker card status badges update live via WebSocket.
+Worker card status badges update live via WebSocket. Teams tab is UI-only (Zustand state).
 
 ---
 
@@ -199,29 +285,18 @@ Roles: MANAGER, ADMIN only
 │ [C] CrewMate  │  Revenue        🔍 Search...                         │
 ├───────────────┼──────────────────────────────────────────────────────┤
 │               │  ┌──────────┐┌──────────┐┌──────────┐┌──────────┐  │
-│  Dashboard    │  │ Revenue  ││  Profit  ││  Margin  ││Jobs Bild │  │
-│  Jobs         │  │ €7,020   ││ €1,340   ││  19.1%   ││   36     │  │
-│  Workers      │  │  ↑8%     ││  ↑12%    ││          ││          │  │
-│  Revenue  ◀   │  └──────────┘└──────────┘└──────────┘└──────────┘  │
-│               │                                                       │
-│               │  Revenue Trend (last 7 days)    [Today▾]             │
+│  OPERATIONS   │  │ Revenue  ││  Profit  ││  Margin  ││Jobs Bild │  │
+│  Dashboard    │  │ €7,020   ││ €1,340   ││  19.1%   ││   36     │  │
+│  Jobs         │  │  ↑8%     ││  ↑12%    ││          ││          │  │
+│               │  └──────────┘└──────────┘└──────────┘└──────────┘  │
+│  WORKFORCE    │                                                       │
+│  Workforce    │  Revenue Trend (last 7 days)    [Today▾]             │
 │               │  €8K ┤                                    ●          │
-│               │  €6K ┤          ╭──╮    ╭──╮  ╭────────╯           │
-│               │  €4K ┤╭────────╯  ╰────╯  ╰──╯  ← Revenue          │
+│  FINANCE      │  €6K ┤          ╭──╮    ╭──╮  ╭────────╯           │
+│  Revenue  ◀   │  €4K ┤╭────────╯  ╰────╯  ╰──╯  ← Revenue          │
 │               │  €2K ┤╭──────────────────────────── Profit (green)  │
 │               │  €0K ┤                                               │
 │               │       Mon  Tue  Wed  Thu  Fri  Sat  Sun              │
-│               │                                                       │
-│               │  Per Job Type Breakdown                               │
-│               │  ┌──────────────┬──────┬─────────┬───────┬───────┐  │
-│               │  │ Job Type     │ Jobs │ Revenue │ Profit│Margin │  │
-│               │  ├──────────────┼──────┼─────────┼───────┼───────┤  │
-│               │  │ HVAC Repair  │  8   │ €1,728  │ €888  │  51%  │  │
-│               │  │ AC Install   │  6   │ €1,920  │ €984  │  51%  │  │
-│               │  │ ...          │ ...  │ ...     │ ...   │ ...   │  │
-│               │  ├──────────────┼──────┼─────────┼───────┼───────┤  │
-│               │  │ TOTAL        │  36  │ €7,020  │€1,340 │  19%  │  │
-│               │  └──────────────┴──────┴─────────┴───────┴───────┘  │
 └───────────────┴───────────────────────────────────────────────────────┘
 ```
 
@@ -259,14 +334,6 @@ Roles: WORKER, TEAM_LEAD · Mobile viewport (430px)
 │ │ Your share: €58     │ │
 │ └─────────────────────┘ │
 │                         │
-│ ┌─────────────────────┐ │
-│ │ J-010  HVAC Maint.  │ │
-│ │ Meazza Stadium      │ │
-│ │ IN PROGRESS  ◉ 50%  │ │
-│ │ €58 / €116 earned   │ │
-│ └─────────────────────┘ │
-│                         │
-│  ... more job cards ... │
 └─────────────────────────┘
 ```
 
@@ -389,7 +456,7 @@ Expanded (opens upward):
 | /jobs/:id/status | PATCH | Worker job card |
 | /jobs/:id/progress | PATCH | Worker job card |
 | /jobs/:id/cancel | PATCH | Revoke modal |
-| /workers | GET | Workers screen |
+| /workers | GET | Workforce / Workers tab |
 | /workers/:id | GET | Worker drawer |
 | /workers/:id/earnings | GET | Worker drawer tabs |
 | /workers/me/jobs | GET | Worker home |
@@ -404,4 +471,4 @@ Expanded (opens upward):
 | job.status.changed | Worker starts/completes job | Dashboard map, Jobs kanban, Worker home |
 | job.progress.updated | Worker taps progress step | Dashboard pin ring, Jobs kanban card |
 | job.cancelled | Manager revokes job | Dashboard map, Jobs kanban |
-| worker.status.changed | Worker goes ON_JOB / IDLE | Workers screen cards |
+| worker.status.changed | Worker goes ON_JOB / IDLE | Workforce screen worker cards |

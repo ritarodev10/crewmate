@@ -168,7 +168,7 @@ What the API endpoint resets (see also API section):
 ## Navigation Sidebar
 
 Present on all **desktop** pages that use the app shell layout:
-`/dashboard`, `/jobs`, `/workers`, `/revenue`.
+`/dashboard`, `/jobs`, `/workforce`, `/revenue`.
 
 **Not present on:** `/worker`, `/worker/jobs/:id`, `/login`, or any page under `/(auth)`.
 
@@ -183,13 +183,31 @@ rail or is hidden behind a hamburger toggle (see Responsive below).
 │ │                                         │   │  │  Top Bar    │  │
 │ │  CrewMate  (wordmark / logo)            │   │  └─────────────┘  │
 │ │                                         │   │                   │
-│ │  ──────────────────────────────────     │   │  (page body)      │
-│ │                                         │   │                   │
+│ │  OPERATIONS                             │   │  (page body)      │
 │ │  ⊞  Dashboard                           │   │                   │
-│ │  💼  Jobs                               │   │                   │
-│ │  👥  Workers                            │   │                   │
-│ │  📊  Revenue                            │   │                   │
+│ │  📋  Jobs                               │   │                   │
+│ │  📅  Schedule          [Soon]           │   │                   │
+│ │  📍  Dispatch          [Soon]           │   │                   │
 │ │                                         │   │                   │
+│ │  WORKFORCE                              │   │                   │
+│ │  👥  Workforce                          │   │                   │
+│ │  🏢  Customers         [Soon]           │   │                   │
+│ │                                         │   │                   │
+│ │  FINANCE                                │   │                   │
+│ │  📈  Revenue                            │   │                   │
+│ │  🧾  Invoices          [Soon]           │   │                   │
+│ │  💳  Payroll           [Soon]           │   │                   │
+│ │                                         │   │                   │
+│ │  INSIGHTS  (Manager/Admin only)         │   │                   │
+│ │  📊  Reports           [Soon]           │   │                   │
+│ │  📉  Performance       [Soon]           │   │                   │
+│ │                                         │   │                   │
+│ │  ─────────────────────── (divider) ──── │   │                   │
+│ │                                         │   │                   │
+│ │  SYSTEM                                 │   │                   │
+│ │  🔌  Integrations      [Soon]           │   │                   │
+│ │  ⚙️  Settings          [Soon]           │   │                   │
+│ │  📜  Audit Log         [Soon]           │   │                   │
 │ │                                         │   │                   │
 │ │  ─ ─ ─ ─ ─ ─ ─ ─ (spacer / flex-grow) │   │                   │
 │ │                                         │   │                   │
@@ -202,17 +220,52 @@ rail or is hidden behind a hamburger toggle (see Responsive below).
 └───────────────────────────────────────────────────────────────────┘
 ```
 
-### Role-Based Visibility Table
+### Nav structure
+
+Categories and items. "Coming soon" items render with a muted label and a small "Soon" badge — not clickable.
+
+```
+OPERATIONS
+  Dashboard         /dashboard        ✅ live    icon: LayoutDashboard
+  Jobs              /jobs             ✅ live    icon: ClipboardList
+  Schedule          /schedule         🔜 soon    icon: CalendarDays
+  Dispatch          /dispatch         🔜 soon    icon: MapPin
+
+WORKFORCE
+  Workforce         /workforce        ✅ live    icon: Users  (Workers + Teams tabs, see screen spec)
+  Customers         /customers        🔜 soon    icon: Building2
+
+FINANCE
+  Revenue           /revenue          ✅ live    icon: TrendingUp
+  Invoices          /invoices         🔜 soon    icon: Receipt
+  Payroll           /payroll          🔜 soon    icon: CreditCard
+
+INSIGHTS  (MANAGER / SUPER_ADMIN only)
+  Reports           /reports          🔜 soon    icon: BarChart3
+  Performance       /performance      🔜 soon    icon: LineChart
+
+─── (divider) ───
+SYSTEM
+  Integrations      /integrations     🔜 soon    icon: Plug
+  Settings          /settings         🔜 soon    icon: Settings
+  Audit Log         /audit            🔜 soon    icon: ScrollText
+
+Role visibility:
+  WORKER: no sidebar (mobile view only)
+  TEAM_LEAD: Operations + Workforce + Revenue only. No Insights, no System.
+  MANAGER / SUPER_ADMIN: all items
+
+Coming soon items:
+  - Rendered but not clickable
+  - Show "Soon" pill badge (xs, muted, right-aligned)
+  - Cursor: default (not pointer)
+  - No hover state change
+
+Active state: bg brand/10, left border-l-2 brand color
+```
 
 Nav items are filtered by the session role. Rendering a nav item in the DOM for a role that should
 not see it is not acceptable — filter before render, not with CSS visibility.
-
-| Nav Item  | Icon (lucide)   | SUPER_ADMIN | MANAGER | TEAM_LEAD | WORKER |
-|-----------|-----------------|-------------|---------|-----------|--------|
-| Dashboard | `LayoutGrid`    | ✅          | ✅      | ✅        | ❌     |
-| Jobs      | `Briefcase`     | ✅          | ✅      | ✅        | ❌     |
-| Workers   | `Users`         | ✅          | ✅      | ❌        | ❌     |
-| Revenue   | `BarChart2`     | ✅          | ✅      | ❌        | ❌     |
 
 TEAM_LEAD sees Dashboard and Jobs but the data rendered on those pages is scoped to their assigned
 team. The sidebar itself does not communicate this scoping — the top bar subtitle does (e.g.
@@ -224,14 +277,7 @@ with no sidebar.
 ### Active State
 
 The currently active nav item is determined by `usePathname()`. A route is "active" when the
-current pathname starts with the nav item's `href`:
-
-| Nav Item  | Active when `pathname` starts with |
-|-----------|------------------------------------|
-| Dashboard | `/dashboard`                       |
-| Jobs      | `/jobs`                            |
-| Workers   | `/workers`                         |
-| Revenue   | `/revenue`                         |
+current pathname starts with the nav item's `href`.
 
 Active item styling:
 - Background: `bg-brand/10` (10% brand tint)
@@ -254,10 +300,10 @@ currently authenticated user and a logout action.
 Layout:
 
 ```
-┌──────────────────────────────────────────────┐
+┌─────────────────────────────────────────────┐
 │ [AV]  Marco Bianchi                [→ Logout] │
 │       Manager                                  │
-└──────────────────────────────────────────────┘
+└─────────────────────────────────────────────┘
 ```
 
 Elements:
@@ -313,7 +359,7 @@ Anatomy:
 |-------------|------------|---------------------------------------------------------|
 | /dashboard  | Dashboard  | "Good [morning/afternoon/evening], [first name]. Here's what's happening today." |
 | /jobs       | Jobs       | "All jobs across your operation."                       |
-| /workers    | Workers    | "Your field team."                                      |
+| /workforce  | Workforce  | "Your field team."                                      |
 | /revenue    | Revenue    | "Earnings and margin overview."                         |
 
 The greeting in the Dashboard subtitle uses the current hour (server-rendered):
