@@ -10,8 +10,7 @@ FROM base AS deps
 COPY pnpm-workspace.yaml .npmrc package.json ./
 COPY apps/api/package.json ./apps/api/
 COPY prisma/schema.prisma ./prisma/
-RUN --mount=type=cache,id=crewmate-pnpm,target=/pnpm/store \
-    pnpm install --frozen-lockfile --filter api...
+RUN pnpm install --frozen-lockfile --filter api...
 
 # Stage 3: builder — compile TypeScript
 FROM deps AS builder
