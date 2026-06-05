@@ -6,9 +6,24 @@ Schema-first approach. `prisma/schema.prisma` is the single contract that both b
 
 ---
 
-## Phase 0 — Scaffold (blocks everything, do first)
+## Deploy Model
+
+Shipping starts in Phase 0. Every phase deploys to production as it merges.
+
+- Phase 0 completes → crewmate.ritaro.dev is live (placeholder page + /healthz)
+- Phase 1 merges → API endpoints live, testable via curl
+- Phase 2 merges → UI screens live with dummy data, visually testable
+- Phase 3 merges → full integration live, demo scenarios work end-to-end
+
+No big-bang deploy at the end. Each phase is a shippable increment.
+
+---
+
+## Phase 0 — Scaffold + Deploy Pipeline (blocks everything, do first)
 
 Sequential. All other phases depend on this. No other phase begins until Phase 0 is complete.
+
+**Scaffold tasks:**
 
 1. **CLAUDE.md** — agent context file (operating rules, stack, monorepo layout, guardrails reading order)
 2. **pnpm monorepo** — `pnpm-workspace.yaml`, root `package.json`, `tsconfig.base.json`, `.npmrc`, `.gitignore`
@@ -16,10 +31,18 @@ Sequential. All other phases depend on this. No other phase begins until Phase 0
 4. **Next.js 15 app scaffold** — `apps/web/`: `package.json`, `next.config.ts`, `tailwind.config.ts`, `postcss.config.js`, `src/app/globals.css` with design tokens, `src/app/layout.tsx`
 5. **Prisma schema** — `prisma/schema.prisma`. Entities: `Operator`, `User`, `Worker`, `Team`, `TeamMember`, `Customer`, `JobType`, `Job`, `JobStatusEvent`. Enums: `JobStatus` (SCHEDULED | IN_PROGRESS | COMPLETED | CANCELLED), `WorkerStatus` (IDLE | ON_JOB | OFF_DUTY), `UserRole` (SUPER_ADMIN | MANAGER | TEAM_LEAD | WORKER), `WorkerKind` (SOLO | TEAM_MEMBER | TEAM_LEAD), `AssigneeKind` (SOLO | TEAM), `CancelCode` (CUSTOMER_CANCELLED | EQUIPMENT_UNAVAILABLE | WORKER_NO_SHOW | ACCESS_DENIED | DUPLICATE_JOB | EMERGENCY_RECALL). **This is THE CONTRACT for both tracks.**
 6. **docker-compose.yml** — `postgres:17` on `:5432`, `redis:7` on `:6379`
-7. **railway.toml** — Railway deploy config for the API service
-8. **Cloudflare Workers config** — `wrangler.toml`, `open-next.config.ts`, proxy worker for single-domain routing
-9. **GitHub Actions CI** — lint + typecheck + test on push/PR
-10. **Shared API types file** — `apps/web/src/types/api.ts`: TypeScript interfaces mirroring Prisma schema field names and expected API response shapes. Frontend dummy data is typed against these interfaces.
+7. **Shared API types file** — `apps/web/src/types/api.ts`: TypeScript interfaces mirroring Prisma schema field names and expected API response shapes. Frontend dummy data is typed against these interfaces.
+
+**Deploy pipeline (Phase 0 ends with a live deploy):**
+
+8. **`docker/api.Dockerfile`** — 4-stage build (base/deps/builder/runner), `node:22-alpine`, pnpm workspace
+9. **`railway.toml`** — service config, start command, healthcheck on `/healthz`
+10. **`wrangler.toml`** + **`open-next.config.ts`** + **`apps/web/src/worker/proxy.ts`** — CF Worker that proxies `/api/*` to Railway API URL, injects `x-cloudflare-secret` header
+11. **`.github/workflows/ci.yml`** — lint + typecheck + test on every push
+12. **`.github/workflows/deploy-api.yml`** — on merge to main: `railway up --service api`
+13. **`.github/workflows/deploy-web.yml`** — on merge to main: `wrangler deploy`
+
+**Phase 0 gate:** Railway service created, first empty deploy live, `crewmate.ritaro.dev` returns 200.
 
 ---
 
@@ -176,20 +199,10 @@ Replace dummy data with real API calls. Screens and endpoints are matched 1-to-1
 
 ---
 
-## Phase 4 — Ship
-
-1. **Railway deploy** — API service + managed Postgres + managed Redis; environment variables set in Railway dashboard
-2. **Cloudflare Workers deploy** — `wrangler deploy` for the web app via `@opennextjs/cloudflare`
-3. **Prisma migrations** — `prisma migrate deploy` in Railway release command (runs before app starts)
-4. **Smoke tests** — 4 curl checks: `GET /healthz` 200, `POST /auth/login` returns token, `GET /jobs` with token returns 40 jobs, WebSocket connects and joins room
-5. **GitHub Actions** — `deploy-api.yml` (push to `main` → Railway deploy) and `deploy-web.yml` (push to `main` → Cloudflare Workers deploy)
-
----
-
 ## Parallel Execution Map
 
 ```
-Phase 0 (scaffold + schema)                [sequential, blocks all]
+Phase 0 (scaffold + schema + deploy pipeline → first live deploy)
     │
     ├── Phase 1A (core infra)              [starts after Phase 0]
     │       │
@@ -198,6 +211,7 @@ Phase 0 (scaffold + schema)                [sequential, blocks all]
     │       ├── Phase 1D (websocket gateway)
     │       ├── Phase 1E (seed + demo reset)
     │       └── Phase 1F (tests)           [all 1B–1F parallel after 1A]
+    │                                      merge to main → auto-deploys
     │
     ├── Phase 2A (design system)           [starts after Phase 0]
     │       │
@@ -211,10 +225,9 @@ Phase 0 (scaffold + schema)                [sequential, blocks all]
     │               ├── Phase 2H (worker mobile)
     │               └── Phase 2I (shared components)
     │                                      [all 2C–2I parallel after 2A+2B]
+    │                                      merge to main → auto-deploys
     │
-    └── Phase 3 (integration)             [needs Phase 1 + 2 per feature]
-            │
-            └── Phase 4 (ship)            [needs Phase 3 complete]
+    └── Phase 3 (integration → full demo live)
 ```
 
 ---
@@ -223,13 +236,13 @@ Phase 0 (scaffold + schema)                [sequential, blocks all]
 
 | Phase | Blocked by |
 |---|---|
+| Phase 0 deploy pipeline | Part of Phase 0 — ships alongside scaffold |
 | Phase 1A | Phase 0 complete |
 | Phase 1B–1F | Phase 0 + Phase 1A (auth guard required) |
 | Phase 2A | Phase 0 complete |
 | Phase 2B | Phase 2A complete |
 | Phase 2C–2I | Phase 2A + Phase 2B complete |
 | Phase 3 (each item) | Relevant Phase 1 endpoint + relevant Phase 2 screen |
-| Phase 4 | Phase 3 complete |
 
 ---
 
