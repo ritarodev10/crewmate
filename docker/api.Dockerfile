@@ -13,7 +13,7 @@ COPY prisma/schema.prisma ./prisma/
 RUN pnpm install --frozen-lockfile --filter api...
 # Generate client here — output goes to node_modules/.prisma/client (root),
 # where the hoisted @prisma/client package can find it at runtime.
-RUN pnpm --filter api exec prisma generate
+RUN pnpm --filter api exec prisma generate --schema=../../prisma/schema.prisma
 
 # Stage 3: builder — compile TypeScript
 FROM deps AS builder
