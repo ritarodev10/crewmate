@@ -75,6 +75,7 @@ Starts after Phase 0 completes. Sections 1A–1F can be split across agents. Eac
 - `GET /workers/:id` — worker detail + today's jobs + current status
 - `GET /workers/:id/earnings` — `{ today: { earned, projected, completed, total }, week, month, allTime }` — all figures computed from job rows
 - `GET /revenue` — `{ summary: { totalRevenue, totalProfit, marginPct, jobsCompleted }, trend: [8 days], byType: [8 rows + totals] }`
+- `GET /search` — full-text search across jobs, workers, customers (grouped results, 5 per scope)
 
 Revenue formula (computed, never stored):
 - `clientCharge = estimatedHours × clientRatePerHour × numberOfWorkersOnJob`
@@ -131,6 +132,7 @@ All screens use dummy data from `docs/PRD/SEED-DATA.md` typed with interfaces fr
 - `src/app/(app)/layout.tsx` — sidebar + main area shell
 - `Sidebar` component — dark `#111318` background, role-gated nav items (Revenue hidden from WORKER, Workers hidden from WORKER, New Job hidden from WORKER/TEAM_LEAD), user pod at bottom, active state highlight
 - `TopBar` component — page greeting, page title, contextual "New Job" button
+- `GlobalSearch` component — search input + dashed-border scope chips (Jobs/Workers/Customers) + results dropdown with keyboard navigation
 - `src/app/(auth)/layout.tsx` — centered auth layout
 - Middleware — checks JWT cookie, redirects unauthenticated requests to `/login`
 - `DemoActorSwitcher` component — floating chip bottom-right, expands to show 11 actor buttons (one per seeded user), sets cookie, "Reset Demo" button
@@ -196,6 +198,7 @@ Replace dummy data with real API calls. Screens and endpoints are matched 1-to-1
 6. **Worker mobile integration** — `GET /jobs?worker={id}` for job list, `PATCH /jobs/:id/status` for start/complete, `PATCH /jobs/:id/progress` for progress steps
 7. **WebSocket integration** — connect Socket.io on app load, join `operator:{id}` room, update TanStack Query cache on all 4 events (map pins, kanban columns, KPI cards, activity feed)
 8. **Demo reset integration** — wire "Reset Demo" button in `DemoActorSwitcher` to `POST /demo/reset`, invalidate all TanStack Query caches on success
+9. **Search integration** — wire Global Search to `GET /search`, debounce 300ms, navigate on result click
 
 ---
 

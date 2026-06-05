@@ -383,6 +383,10 @@ Every main screen follows this pattern:
 └──────────────────────────────────────────┘
 ```
 
+The TopBar search is **functional** (not a placeholder). It renders a search input with dashed-border
+scope chips (Jobs / Workers / Customers) and a results dropdown wired to `GET /search`. See
+`docs/PRD/screens/08-shared-components.md` — Global Search for the full spec.
+
 ---
 
 ## Screens
@@ -429,6 +433,11 @@ GET    /workers                    → worker list with today's earnings
 GET    /workers/:id                → worker detail + jobs + earnings breakdown
 GET    /workers/:id/earnings       → { today, week, month, lifetime }
 GET    /revenue                    → { summary, trend[7], byType[] }
+GET    /search?q={query}&scope[]={jobs|workers|customers}
+                                   → Returns grouped results: { jobs: JobResult[], workers: WorkerResult[], customers: CustomerResult[] }
+                                   → Max 5 results per scope group
+                                   → Requires auth
+                                   → TEAM_LEAD: workers results scoped to their team; customers not returned
 POST   /demo/reset                 → reset all job state to seed defaults
 WS     /ws                         → Socket.io, room: operator:{id}
 ```

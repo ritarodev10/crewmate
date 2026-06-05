@@ -323,12 +323,59 @@ The greeting in the Dashboard subtitle uses the current hour (server-rendered):
 
 **Search input:**
 
-- Placeholder: "Search jobs, workers…"
-- Icon: `Search` (16 px, lucide) — left-aligned inside input
+- Placeholder: "Search…"
+- Icon: `Search` (16 px, lucide) — left-aligned inside input, muted color
 - Width: `w-64` on `lg`, `w-48` on `md`
-- In Phase 2: input is rendered but `onChange` does nothing. No results dropdown.
-- `aria-label="Search"`, `disabled` in Phase 2 with a `title="Coming soon"` tooltip to communicate
-  that this is a placeholder.
+- Activates Global Search (see ### Global Search below)
+
+### Global Search
+
+A single search input in the TopBar with inline scope filter chips.
+
+**Visual anatomy (left to right):**
+- Search icon (magnifying glass, muted color)
+- Text input ("Search…" placeholder)
+- "In:" label
+- Dashed-border pill chips: [Jobs] [Workers] [Customers]
+  - All three selected by default
+  - Click chip to toggle scope (deselected = dimmer, dashed border)
+  - At least one must always remain selected
+
+**Trigger:**
+- Click search input OR press Cmd+K (Mac) / Ctrl+K (Win)
+- Focuses input and opens results dropdown
+
+**Results dropdown (appears below TopBar, full width of search bar):**
+- Grouped by scope: "Jobs (3)", "Workers (1)", "Customers (2)"
+- Max 5 results per group
+- Each result row: icon + primary label + secondary label
+  - Job: job type icon + customer name + worker name + status badge
+  - Worker: avatar + worker name + role badge + status dot
+  - Customer: building icon + customer name + address
+- Click result → navigate to relevant screen/drawer:
+  - Job → opens Job Detail Side Drawer on the Jobs Kanban screen
+  - Worker → opens Worker Detail Drawer on the Workers screen
+  - Customer → opens first active job for that customer
+- "No results" empty state if query returns nothing
+- Loading skeleton (3 placeholder rows) while fetching
+
+**Search fields per scope:**
+- Jobs: customer name, job type name, assigned worker name, customer address, job ID
+- Workers: name, phone number, email
+- Customers: name, address, contact name
+
+**Keyboard navigation:**
+- Arrow keys navigate results
+- Enter opens focused result
+- Escape clears input and closes dropdown
+
+**Debounce:** 300ms after last keystroke before firing API call
+**Min query length:** 2 characters
+
+**RBAC:**
+- MANAGER / SUPER_ADMIN: all 3 scopes available
+- TEAM_LEAD: Jobs and Workers scopes only (Workers results filtered to their team)
+- WORKER: search not shown (worker view has no TopBar)
 
 **"+ New Job" button:**
 
@@ -812,6 +859,8 @@ No subscription is created for SCHEDULED, COMPLETED, or CANCELLED jobs — stati
    `crewmate_session` to ensure the middleware can read both. In local dev this is `localhost`.
    In production demo deployments, set `domain` explicitly.
 
-10. **Top bar search (Phase 2 placeholder).** The search input is `disabled` in Phase 2. Do not
-    wire any `onChange` or debounce logic. The `disabled` attribute makes it visually grayed out —
-    add a `Tooltip` with "Coming soon" to explain the state to reviewers.
+10. **Top bar search (Phase 2 shell).** In Phase 2 the search input and scope chips are rendered
+    but `onChange` is not wired to a real API call — the component is built out structurally with
+    the full visual anatomy (input, "In:" label, dashed-border chips) and keyboard shortcut
+    listener (Cmd+K / Ctrl+K). The results dropdown is rendered with skeleton loading rows to
+    verify layout. Real API wiring (`GET /search`) happens in Phase 3 Search integration.
