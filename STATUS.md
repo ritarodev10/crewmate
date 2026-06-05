@@ -7,21 +7,21 @@
 ## Current Phase
 
 **Phase 0 — Scaffold + Deploy Pipeline**
-Status: `IN PROGRESS`
+Status: `COMPLETE (pending live deploy gate)`
 
 ---
 
 ## Last Session
 
 **Date:** 2026-06-05
-**Summary:** Agent harness complete (12 agents, 7 skills, PLAYBOOK.md, MCP wiring). CLAUDE.md written. Ports locked (web :6200, API :6201). credentials.md created (git-excluded). Phase 0 Wave 1 started — CLAUDE.md done, pnpm monorepo next.
+**Summary:** Phase 0 all 4 waves complete. `pnpm install` ✓, `pnpm --filter api build` ✓, `pnpm --filter web build` ✓, `pnpm typecheck` ✓. All 9 Prisma entities, 4-stage Dockerfile, railway.toml, wrangler.toml, 3 CI/CD workflows written. One manual gate remains.
 **Completed by:** cm-orchestrator
 
 ---
 
 ## Active Right Now
 
-Phase 0 Wave 1 — Foundation Files (monorepo root, docker-compose, prisma schema, shared API types) — IN PROGRESS
+_Nothing. Phase 0 code complete — awaiting manual deploy gate._
 
 ---
 
@@ -33,12 +33,11 @@ _Nothing blocked._
 
 ## Next Up
 
-Start Phase 0 — in order:
-1. Create `CLAUDE.md` (agent context file)
-2. Scaffold pnpm monorepo (`pnpm-workspace.yaml`, root `package.json`, `tsconfig.base.json`)
-3. NestJS 11 app scaffold (`apps/api/`)
-4. Next.js 15 app scaffold (`apps/web/`)
-5. Prisma schema (`prisma/schema.prisma`) — the shared contract
+**Manual gate (one-time):** Push to `main` → Railway creates service → verify `https://crewmate.ritaro.dev` returns 200.
+
+Then Phase 1 (backend) and Phase 2 (frontend) can both start in parallel:
+- **Phase 1A:** Config module, PrismaService, `/healthz`, `/readyz`, auth module, CloudflareSecretGuard
+- **Phase 2A:** CSS design tokens, shadcn/ui init, Zustand stores, TanStack Query client
 
 Full task breakdown: `.planning/STATE.md`
 
@@ -46,7 +45,7 @@ Full task breakdown: `.planning/STATE.md`
 
 ## Completed Phases
 
-_None yet._
+- **Phase 0 — Scaffold + Deploy Pipeline** — code complete 2026-06-05
 
 ---
 

@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+:root {
+  --color-canvas: #F0EBE0;
+  --color-surface: #FFFFFF;
+  --color-sidebar: #111318;
+  --color-primary: #2563EB;
+  --color-status-scheduled: #2563EB;
+  --color-status-in-progress: #F97316;
+  --color-status-completed: #22C55E;
+  --color-status-cancelled: #9CA3AF;
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+}
+
+body {
+  background-color: var(--color-canvas);
+}

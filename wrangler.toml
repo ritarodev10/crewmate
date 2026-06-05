@@ -1,0 +1,14 @@
+name = "crewmate-web"
+main = "apps/web/.open-next/worker.js"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+[[routes]]
+pattern = "crewmate.ritaro.dev/*"
+zone_name = "ritaro.dev"
+
+[vars]
+NEXT_PUBLIC_API_URL = "https://api.crewmate.ritaro.dev"
+
+[[build]]
+command = "pnpm --filter web build"

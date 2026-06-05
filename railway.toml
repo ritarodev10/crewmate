@@ -1,0 +1,10 @@
+[build]
+builder = "dockerfile"
+dockerfilePath = "docker/api.Dockerfile"
+
+[deploy]
+startCommand = "node apps/api/dist/main"
+healthcheckPath = "/healthz"
+healthcheckTimeout = 30
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
