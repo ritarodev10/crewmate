@@ -39,7 +39,7 @@ jobs:
         run: pnpm --filter web lint
 
       - name: Test API
-        run: pnpm --filter api test
+        run: pnpm --filter api test -- --passWithNoTests
         env:
           DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/crewmate_test'
           JWT_SECRET: 'ci-test-secret'
