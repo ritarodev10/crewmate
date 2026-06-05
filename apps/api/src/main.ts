@@ -9,6 +9,11 @@ async function bootstrap() {
     new FastifyAdapter(),
   )
 
+  app.setGlobalPrefix('api/v1', {
+    // Health endpoints live at root without prefix
+    exclude: ['healthz', 'readyz'],
+  })
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
