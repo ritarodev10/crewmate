@@ -21,7 +21,7 @@ Status: `IN PROGRESS`
 
 ## Active Right Now
 
-Phase 0 Wave 1 — Foundation Files (`pnpm-workspace.yaml`, `package.json`, `tsconfig.base.json`, `.npmrc`)
+Phase 0 Wave 1 — Foundation Files (monorepo root, docker-compose, prisma schema, shared API types) — IN PROGRESS
 
 ---
 

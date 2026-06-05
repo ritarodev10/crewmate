@@ -6,7 +6,33 @@ Pre-written verifiable conditions for every wave. Copy the condition, run `/goal
 - Claude proves the condition by running commands and showing output in the conversation
 - Haiku evaluates from that output — not by reading files independently
 - Every condition has a turn bound to prevent runaway loops
-- Pair with auto mode for fully unattended execution
+- Pair with auto mode (Shift+Tab) for fully unattended execution
+
+---
+
+## Phase Goals (unattended — one shot per phase)
+
+> Use these when leaving for a long run. Enable auto mode first.
+
+### Phase 0 — Full Phase
+```
+/goal `pnpm install` exits 0 and `pnpm --filter api build` exits 0 and `pnpm --filter web build` exits 0 and `pnpm typecheck` exits 0 and `prisma/schema.prisma` contains all 9 entities (Operator, User, Worker, Team, TeamMember, Customer, JobType, Job, JobStatusEvent) and `docker/api.Dockerfile` exists with 4 stages and `railway.toml` exists with a healthcheck entry and `wrangler.toml` exists with crewmate.ritaro.dev route and `.github/workflows/ci.yml` and `.github/workflows/deploy-api.yml` and `.github/workflows/deploy-web.yml` all exist or stop after 80 turns
+```
+
+### Phase 1 — Full Phase
+```
+/goal `pnpm --filter api test` exits 0 with all suites passing and `curl -s http://localhost:6201/healthz` returns `{"status":"ok"}` and `POST /auth/login` with valid credentials returns a JWT and `GET /jobs` returns status-grouped jobs and `GET /dashboard/summary` returns `{totalJobs, activeWorkers, onTimeRate, revenueToday, profitToday}` and `GET /workers` returns workers with earnings and `GET /revenue` returns `{summary, trend, byType}` and `pnpm prisma db seed` exits 0 with 40 jobs seeded or stop after 120 turns
+```
+
+### Phase 2 — Full Phase
+```
+/goal `pnpm --filter web build` exits 0 and `pnpm typecheck` exits 0 and all 10 shadcn components installed and `/login` renders with 5 demo shortcut buttons and `/dashboard` renders KPI cards + map + activity feed and `/jobs` renders 4 kanban columns and `/workforce` renders worker grid and `/revenue` renders AreaChart and `/worker` renders at max-width 430px — all verified by dev-browser with no console errors or stop after 150 turns
+```
+
+### Phase 3 — Full Phase
+```
+/goal auth login sets httpOnly cookie and redirects to `/dashboard` with live API data and kanban updates in real-time via WebSocket without page refresh and `POST /demo/reset` invalidates all TanStack Query caches and `GET /search?q=Marco` returns grouped results with 300ms debounce — all verified by dev-browser or stop after 100 turns
+```
 
 ---
 

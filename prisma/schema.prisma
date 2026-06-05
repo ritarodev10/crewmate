@@ -1,0 +1,302 @@
+// =============================================================================
+// prisma/schema.prisma
+//
+// THE CONTRACT — single source of truth for API types and frontend interfaces.
+// Any change here requires updating apps/web/src/types/api.ts accordingly.
+//
+// Conventions:
+//   - Model names: PascalCase singular
+//   - Field names: camelCase
+//   - Enum values: SCREAMING_SNAKE_CASE
+//   - Money values: Int (euro cents) — never Float for currency
+//   - All FK columns used in WHERE clauses have a @@index
+//   - Never store computed values (revenue, earnings, profit)
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================================
+// Enums
+// =============================================================================
+
+enum JobStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum WorkerStatus {
+  IDLE
+  ON_JOB
+  OFF_DUTY
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  MANAGER
+  TEAM_LEAD
+  WORKER
+}
+
+enum WorkerKind {
+  SOLO
+  TEAM_MEMBER
+  TEAM_LEAD
+}
+
+enum AssigneeKind {
+  SOLO
+  TEAM
+}
+
+enum CancelCode {
+  CUSTOMER_CANCELLED
+  EQUIPMENT_UNAVAILABLE
+  WORKER_NO_SHOW
+  ACCESS_DENIED
+  DUPLICATE_JOB
+  EMERGENCY_RECALL
+}
+
+// =============================================================================
+// Models
+// =============================================================================
+
+// ----------------------------------------------------------------------------
+// Operator — multi-tenant root. Every data row belongs to exactly one Operator.
+// ----------------------------------------------------------------------------
+model Operator {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+
+  users     User[]
+  workers   Worker[]
+  teams     Team[]
+  customers Customer[]
+  jobTypes  JobType[]
+  jobs      Job[]
+}
+
+// ----------------------------------------------------------------------------
+// User — operator staff (admins, managers, team leads, workers)
+// A User can optionally have a linked Worker record (for field staff).
+// ----------------------------------------------------------------------------
+model User {
+  id           String   @id @default(cuid())
+  operatorId   String
+  operator     Operator @relation(fields: [operatorId], references: [id])
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         UserRole
+  createdAt    DateTime @default(now())
+
+  worker Worker?
+
+  @@index([operatorId])
+}
+
+// ----------------------------------------------------------------------------
+// Worker — field technicians. Each worker has a linked User account.
+// hourlyRate: personal net contractor rate in euro cents.
+// rating: lifetime average customer rating (1.0–5.0), updated from completed jobs.
+// currentLat/currentLng: last known position (static from seed for demo).
+// ----------------------------------------------------------------------------
+model Worker {
+  id          String       @id @default(cuid())
+  operatorId  String
+  operator    Operator     @relation(fields: [operatorId], references: [id])
+  userId      String       @unique
+  user        User         @relation(fields: [userId], references: [id])
+  name        String
+  email       String       @unique
+  phone       String?
+  avatarUrl   String?
+  hourlyRate  Int
+  status      WorkerStatus @default(IDLE)
+  kind        WorkerKind   @default(SOLO)
+  rating      Float        @default(5.0)
+  currentLat  Float?
+  currentLng  Float?
+  createdAt   DateTime     @default(now())
+
+  teamMemberships TeamMember[]
+  jobs            Job[]        @relation("AssignedWorker")
+
+  @@index([operatorId])
+}
+
+// ----------------------------------------------------------------------------
+// Team — a named group of workers led by one Worker (the team lead).
+// leadId references the Worker record of the team lead.
+// ----------------------------------------------------------------------------
+model Team {
+  id         String   @id @default(cuid())
+  operatorId String
+  operator   Operator @relation(fields: [operatorId], references: [id])
+  name       String
+  leadId     String?
+  createdAt  DateTime @default(now())
+
+  members TeamMember[]
+  jobs    Job[]        @relation("AssignedTeam")
+
+  @@index([operatorId])
+}
+
+// ----------------------------------------------------------------------------
+// TeamMember — join table between Worker and Team.
+// A worker may belong to at most one team (enforced by @unique on workerId).
+// @@unique([teamId, workerId]) prevents duplicate membership rows.
+// ----------------------------------------------------------------------------
+model TeamMember {
+  id       String   @id @default(cuid())
+  teamId   String
+  team     Team     @relation(fields: [teamId], references: [id])
+  workerId String   @unique
+  worker   Worker   @relation(fields: [workerId], references: [id])
+  joinedAt DateTime @default(now())
+
+  @@unique([teamId, workerId])
+  @@index([teamId])
+}
+
+// ----------------------------------------------------------------------------
+// Customer — the business/site that receives the service.
+// lat/lng: Milan coordinates, copied onto Job at creation.
+// ----------------------------------------------------------------------------
+model Customer {
+  id           String   @id @default(cuid())
+  operatorId   String
+  operator     Operator @relation(fields: [operatorId], references: [id])
+  name         String
+  address      String
+  lat          Float
+  lng          Float
+  phone        String?
+  email        String?
+  contactName  String?
+  createdAt    DateTime @default(now())
+
+  jobs Job[]
+
+  @@index([operatorId])
+}
+
+// ----------------------------------------------------------------------------
+// JobType — service templates (lookup table, pre-seeded).
+// clientRatePerHour: what the platform bills the client per worker per hour (cents).
+// estimatedHours: default job duration copied onto Job at creation.
+// customerPhotos/workerPhotos: deterministic Picsum URLs, 2 per type.
+//   Pattern: https://picsum.photos/seed/{typeName}-{before|after}-{1|2}/400/300
+// ----------------------------------------------------------------------------
+model JobType {
+  id                String   @id @default(cuid())
+  operatorId        String
+  operator          Operator @relation(fields: [operatorId], references: [id])
+  name              String
+  label             String
+  estimatedHours    Float
+  clientRatePerHour Int
+  customerPhotos    String[]
+  workerPhotos      String[]
+  createdAt         DateTime @default(now())
+
+  jobs Job[]
+
+  @@index([operatorId])
+}
+
+// ----------------------------------------------------------------------------
+// Job — the core operational entity.
+//
+// assigneeKind=SOLO  → workerId is set, teamId is null
+// assigneeKind=TEAM  → teamId is set, workerId is null
+//
+// estimatedHours + clientRatePerHour are copied from JobType at creation so
+// historical jobs retain the rate that was active when they were created.
+//
+// customerPhotoUrls + workerPhotoUrls are copied from JobType at creation.
+// workerPhotoUrls are only shown in the UI once status = COMPLETED.
+//
+// lat/lng are copied from Customer at creation for map rendering.
+//
+// cancelledBy: userId of the manager/admin who revoked the job.
+//
+// customerRating (1–5) and customerTestimony are pre-seeded for COMPLETED jobs.
+// ----------------------------------------------------------------------------
+model Job {
+  id                String       @id @default(cuid())
+  operatorId        String
+  operator          Operator     @relation(fields: [operatorId], references: [id])
+  customerId        String
+  customer          Customer     @relation(fields: [customerId], references: [id])
+  jobTypeId         String
+  jobType           JobType      @relation(fields: [jobTypeId], references: [id])
+  assigneeKind      AssigneeKind
+  workerId          String?
+  worker            Worker?      @relation("AssignedWorker", fields: [workerId], references: [id])
+  teamId            String?
+  team              Team?        @relation("AssignedTeam", fields: [teamId], references: [id])
+  status            JobStatus    @default(SCHEDULED)
+  progressPct       Int          @default(0)
+  scheduledFor      DateTime
+  startedAt         DateTime?
+  completedAt       DateTime?
+  cancelledAt       DateTime?
+  cancelledBy       String?
+  cancelReasonCode  CancelCode?
+  cancelReasonNote  String?
+  estimatedHours    Float
+  clientRatePerHour Int
+  customerPhotoUrls String[]
+  workerPhotoUrls   String[]
+  lat               Float
+  lng               Float
+  customerRating    Int?
+  customerTestimony String?
+  notes             String?
+  createdAt         DateTime     @default(now())
+
+  statusEvents JobStatusEvent[]
+
+  @@index([operatorId])
+  @@index([customerId])
+  @@index([jobTypeId])
+  @@index([workerId])
+  @@index([teamId])
+  @@index([status])
+  @@index([scheduledFor])
+}
+
+// ----------------------------------------------------------------------------
+// JobStatusEvent — immutable audit trail of all status transitions.
+//
+// actorUserId: the User id of whoever triggered the transition
+//   (manager, worker via their linked User, or system).
+// occurredAt: timestamp of the transition.
+// metadata: flexible JSON for extra context (progressPct, cancelReasonCode, etc.).
+// ----------------------------------------------------------------------------
+model JobStatusEvent {
+  id          String     @id @default(cuid())
+  jobId       String
+  job         Job        @relation(fields: [jobId], references: [id])
+  actorUserId String
+  fromStatus  JobStatus?
+  toStatus    JobStatus
+  note        String?
+  metadata    Json?
+  occurredAt  DateTime   @default(now())
+
+  @@index([jobId])
+}

@@ -108,6 +108,7 @@ These apply to every agent in every context. No exceptions.
 | Convention index | `docs/conventions/_INDEX.md` |
 | Agent roster | `.claude/agents/_INDEX.md` |
 | Execution playbook | `.claude/PLAYBOOK.md` |
+| Credentials + env vars | `docs/credentials.md` (git-excluded — local only) |
 
 ---
 
@@ -165,3 +166,5 @@ npx prisma studio                   # inspect DB in browser
 Production URL: `crewmate.ritaro.dev`
 API URL: `api.crewmate.ritaro.dev` → Railway (CNAME to Railway service URL)
 CF Worker calls `api.crewmate.ritaro.dev`, injects `x-cloudflare-secret` — API rejects requests without it
+
+**Credentials, tokens, and infrastructure IDs:** see `docs/credentials.md` (git-excluded)
