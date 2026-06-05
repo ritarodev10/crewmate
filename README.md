@@ -126,7 +126,7 @@ Tap through the 4 progress steps (25% → 50% → 75% → 100%) and hit **Comple
 | State | TanStack Query 5 · Zustand 5 |
 | Maps | Mapbox GL JS |
 | Auth | Passport JWT (access + refresh) |
-| Deploy | Fly.io (API) · Cloudflare Workers (Web) |
+| Deploy | Railway (API) · Cloudflare Workers (Web) |
 | CI/CD | GitHub Actions · Docker |
 
 ---
@@ -185,6 +185,14 @@ docs/
 
 ## Deploy
 
-- **API:** Fly.io — `flyctl deploy --remote-only`
+- **API:** Railway — push to `main` triggers auto-deploy via GitHub integration
 - **Web:** Cloudflare Workers — `wrangler deploy` from `apps/web/`
 - **CI:** GitHub Actions runs lint → typecheck → test on every push; deploys on merge to `main`
+
+### First-time Railway setup
+1. Create a Railway project at [railway.app](https://railway.app)
+2. Add a PostgreSQL service and a Redis service
+3. Deploy the API service linked to this repo (`apps/api/`)
+4. Railway auto-injects `DATABASE_URL` and `REDIS_URL`
+5. Set remaining secrets in Railway dashboard: `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `CLOUDFLARE_SHARED_SECRET`
+6. Add `RAILWAY_TOKEN` to GitHub repo secrets for CI deploy
