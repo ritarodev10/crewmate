@@ -1,8 +1,0 @@
-node_modules
-.next
-coverage
-dist
-.git
-*.md
-.env*
-!apps/api/.env.example
