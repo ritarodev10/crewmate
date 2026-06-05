@@ -5,6 +5,7 @@ import { validateEnv } from './config/env.validation'
 import { PrismaModule } from './prisma/prisma.module'
 import { AuthModule } from './auth/auth.module'
 import { HealthModule } from './health/health.module'
+import { JobsModule } from './jobs/jobs.module'
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard'
 import { RolesGuard } from './auth/guards/roles.guard'
 import { CloudflareSecretGuard } from './auth/guards/cloudflare-secret.guard'
@@ -16,6 +17,7 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter'
     PrismaModule,
     AuthModule,
     HealthModule,
+    JobsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
