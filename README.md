@@ -212,13 +212,71 @@ NEXT_PUBLIC_API_URL=http://localhost:3000
 ## Project Structure
 
 ```
-apps/
-  api/          NestJS API (REST + WebSocket)
-  web/          Next.js web app
-prisma/         Schema, migrations, seed
-docker/         API Dockerfile
-docs/
-  PRD/          Product requirements (source of truth)
+crewmate/
+├── apps/
+│   ├── api/                        NestJS 11 REST + WebSocket API
+│   │   └── src/
+│   │       ├── auth/               JWT auth, Passport strategy, guards
+│   │       ├── jobs/               Jobs CRUD, status transitions, kanban
+│   │       ├── workers/            Worker list, earnings calculations
+│   │       ├── dashboard/          Summary KPIs, activity feed
+│   │       ├── revenue/            Revenue aggregates, trend data
+│   │       ├── search/             Full-text search across entities
+│   │       ├── demo/               POST /demo/reset endpoint
+│   │       ├── ws/                 Socket.io gateway (4 events)
+│   │       └── prisma/             PrismaService singleton
+│   │
+│   └── web/                        Next.js 15 App Router web app
+│       └── src/
+│           ├── app/
+│           │   ├── (auth)/         /login
+│           │   ├── (app)/          Protected shell (sidebar + topbar)
+│           │   │   ├── dashboard/
+│           │   │   ├── jobs/
+│           │   │   ├── workforce/  Workers tab + Teams tab
+│           │   │   └── revenue/
+│           │   └── worker/         Mobile job view (/worker, /worker/jobs/:id)
+│           ├── components/
+│           │   ├── ui/             shadcn/ui primitives
+│           │   ├── jobs/           JobDetailDrawer, RevokeJobModal, KanbanBoard
+│           │   ├── workforce/      WorkerCard, WorkerDetailDrawer, TeamCard
+│           │   ├── dashboard/      MapView, ActivityFeed, KpiCards
+│           │   ├── revenue/        RevenueChart, BreakdownTable
+│           │   └── shared/         GlobalSearch, DemoActorSwitcher, Sidebar, TopBar
+│           ├── stores/             Zustand slices (auth, demo actor, teams UI)
+│           ├── hooks/              TanStack Query hooks per entity
+│           ├── types/
+│           │   └── api.ts          TypeScript interfaces mirroring Prisma schema
+│           └── lib/                API client, utils, constants
+│
+├── prisma/
+│   ├── schema.prisma               Single source-of-truth schema (shared contract)
+│   ├── migrations/                 Prisma migration history
+│   └── seed.ts                     Full demo seed (operator → jobs → history)
+│
+├── docker/
+│   └── api.Dockerfile              4-stage build (deps → builder → runner)
+│
+├── .github/
+│   └── workflows/
+│       ├── ci.yml                  Lint + typecheck + test on every push
+│       ├── deploy-api.yml          Railway deploy on merge to main
+│       └── deploy-web.yml          Cloudflare Workers deploy on merge to main
+│
+├── docs/
+│   └── PRD/                        Product requirements (source of truth)
+│       ├── screens/                Per-screen specs (login, dashboard, jobs…)
+│       ├── design-system/          Colors, typography, shadow scale
+│       ├── SYSTEM-MAP.md           All API endpoints + WebSocket events
+│       ├── SEED-DATA.md            Demo dataset (workers, jobs, customers)
+│       └── ACTOR-WORKFLOWS.md      Role-by-role user journeys
+│
+├── docker-compose.yml              Local Postgres 17 + Redis 7
+├── railway.toml                    Railway service config + healthcheck
+├── wrangler.toml                   Cloudflare Workers config
+├── pnpm-workspace.yaml
+├── tsconfig.base.json
+└── CLAUDE.md                       AI agent context (stack, guardrails, conventions)
 ```
 
 ---

@@ -9,7 +9,7 @@
 
 ```
 docs/PRD/screens/
-  INDEX.md                  ← this file
+  _INDEX.md                 ← this file
   01-login.md               ← /login
   02-dashboard.md           ← /dashboard
   03-jobs-kanban.md         ← /jobs

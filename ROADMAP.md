@@ -160,12 +160,22 @@ All screens use dummy data from `docs/PRD/SEED-DATA.md` typed with interfaces fr
 - "New Job" modal — Step 1: pick one of 5 templates (auto-fills customer, hours, rate, photos); Step 2: pre-filled form, assign worker
 - Job Detail Side Drawer (shared — see 2I)
 
-### 2F — Workers Screen
+### 2F — Workforce Screen (`/workforce`)
 
+Two tabs at the top of the screen. Workers tab is full-featured; Teams tab is UI-only (Zustand state, no API calls until Phase 3).
+
+**Workers tab:**
 - 4 summary KPI cards — total workers (9), on job now (8), completed today (by count), team avg earnings
-- 3-column worker card grid — avatar, name, role badge (TEAM_LEAD / TEAM_MEMBER / SOLO), status pill, jobs today, earnings today, star rating
+- 3-column worker card grid — avatar, name, role badge (TEAM_LEAD / TEAM_MEMBER / SOLO), status pill, jobs today, earnings today, star rating; each card shows a team chip ("Team Alfa" or "Solo")
 - Worker Detail Drawer — earnings tabs (Today / This Week / This Month / All Time) with bar charts using Recharts; Team Lead drawer includes team total vs individual breakdown
-- "My Team" tab (Team Lead role) — shows only Team Alfa members
+- RBAC: MANAGER full access, TEAM_LEAD scoped to their team only, WORKER no access
+
+**Teams tab (UI-only, Zustand state — no API calls):**
+- Team card grid — card shows team name, lead avatar + name, member avatar stack, member count, on-job count
+- Team Detail Drawer — lead section, members table with Remove button, "Add Member" button opens Worker Picker modal
+- "Add Team" button (MANAGER only) — modal with team name field + lead picker
+- Empty state for operators with no teams yet
+- Dummy data from `docs/PRD/SEED-DATA.md` (Team Alfa: Marco lead, 4 members)
 
 ### 2G — Revenue Screen
 
@@ -223,7 +233,7 @@ Phase 0 (scaffold + schema + deploy pipeline → first live deploy)
     │               ├── Phase 2C (login)
     │               ├── Phase 2D (dashboard)
     │               ├── Phase 2E (jobs kanban)
-    │               ├── Phase 2F (workers)
+    │               ├── Phase 2F (workforce — workers + teams tabs)
     │               ├── Phase 2G (revenue)
     │               ├── Phase 2H (worker mobile)
     │               └── Phase 2I (shared components)

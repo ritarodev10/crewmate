@@ -1,6 +1,6 @@
 # CrewMate — Design System
 
-> Reference: `reference-intelly.png` (Intelly medical dashboard)
+> Primary reference: `reference-crewmate.png` | Secondary: `reference-intelly.png`
 > Stack: Tailwind 4, shadcn/ui, `@crewmate/ui` tokens
 > Last updated: 2026-06-05
 
@@ -11,7 +11,7 @@
 ### The Aesthetic: Clean Modern Ops Dashboard — Warm Canvas, Colorful Cards, Glassmorphism Map
 
 Two reference images define this aesthetic:
-- `reference-crewmate-v1.png` — the closest target: dark sidebar, warm off-white canvas, colorful KPI icon cards, real person avatars in feed, satellite map with labeled pins
+- `reference-crewmate.png` — primary target: dark sidebar, warm off-white canvas, colorful KPI cards with sparklines, real person avatars in feed, 2px left accent bars in activity rows, satellite map with labeled pins, glassmorphism legend
 - `reference-intelly.png` — style DNA: warm canvas, inner-contained panel layout, section labels in sidebar, dense but airy feel
 
 **Core rules:**
@@ -424,7 +424,8 @@ shadcn/ui semantic overrides:
 
 | File | Purpose |
 |---|---|
-| `docs/PRD/design-system/reference-intelly.png` | Source design — vintage newsprint + vivid pops |
+| `docs/PRD/design-system/reference-crewmate.png` | **Primary** — canonical CrewMate dashboard target: dark sidebar, warm canvas, colorful KPI cards with sparklines, activity feed with accent bars, satellite Milan map, glassmorphism legend |
+| `docs/PRD/design-system/reference-intelly.png` | **Secondary** — Intelly medical dashboard: layout DNA, warm canvas aesthetic, inner-contained panel style |
 | `packages/ui/src/tokens.css` | CSS custom properties (to be written) |
 | `apps/web/src/app/globals.css` | Tailwind 4 `@theme` mapping (to be written) |
-| `docs/PRD/screens/INDEX.md` | Screen layout diagrams |
+| `docs/PRD/screens/_INDEX.md` | Screen layout diagrams |
