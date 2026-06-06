@@ -1,5 +1,4 @@
 import { cookies } from 'next/headers'
-import { TopBar } from '@web/components/layout/TopBar'
 import { getServerSession } from '@web/lib/session'
 import { WORKERS, JOBS, TEAMS } from '@web/data/seed'
 import { WorkforceView } from './_components/WorkforceView'
@@ -89,21 +88,12 @@ export default async function WorkforcePage() {
   })
 
   return (
-    <>
-      <TopBar session={session} />
-      <main className="flex-1 overflow-y-auto p-6">
-        <div className="mb-6">
-          <h2 className="text-lg font-semibold text-[var(--color-default)]">Workforce</h2>
-          <p className="text-sm text-[var(--color-muted)]">
-            Live worker status across all crews
-          </p>
-        </div>
-        <WorkforceView
-          workers={workerStats}
-          teams={teamStats}
-          session={session}
-        />
-      </main>
-    </>
+    <main className="flex-1 overflow-y-auto p-6">
+      <WorkforceView
+        workers={workerStats}
+        teams={teamStats}
+        session={session}
+      />
+    </main>
   )
 }
