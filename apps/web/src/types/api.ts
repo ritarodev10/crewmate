@@ -152,6 +152,27 @@ export interface DashboardSummaryData {
   todayProfit: number   // cents
 }
 
+export interface RevenueTrendPoint {
+  date: string
+  revenue: number  // cents
+  profit: number   // cents
+}
+
+export interface RevenueByJobType {
+  jobTypeId: string
+  name: string
+  label: string
+  revenue: number  // cents
+  profit: number   // cents
+  jobCount: number
+}
+
+export interface RevenueSummary {
+  today: { revenue: number; profit: number }  // cents
+  trend: RevenueTrendPoint[]
+  byJobType: RevenueByJobType[]
+}
+
 export interface ActivityEvent {
   id: string
   jobId: string
