@@ -9,6 +9,7 @@ import type { UserRole } from '@web/stores/auth'
 
 interface LoginData {
   accessToken: string
+  refreshToken: string
   user: { id: string; email: string; role: string; name: string; operatorId: string }
 }
 
@@ -19,8 +20,7 @@ export async function loginAction(email: string, password: string): Promise<{ er
       body: { email, password },
     })
 
-    const { accessToken, user } = res.data
-    // Enrich with fixture data for avatarUrl, teamId, workerId (not in JWT)
+    const { accessToken, refreshToken, user } = res.data
     const fixture = FIXTURE_SESSIONS[email.toLowerCase()]
 
     const session: Session = {
@@ -29,6 +29,7 @@ export async function loginAction(email: string, password: string): Promise<{ er
       role: user.role as UserRole,
       operatorId: user.operatorId,
       accessToken,
+      refreshToken,
       avatarUrl: fixture?.avatarUrl,
       teamId: fixture?.teamId,
       workerId: fixture?.workerId,

@@ -6,7 +6,8 @@ export interface Session {
   name: string
   role: UserRole
   operatorId: string
-  accessToken?: string  // JWT from real login — demo actor cookies won't have it
+  accessToken?: string   // JWT from real login — demo actor cookies won't have it
+  refreshToken?: string  // Used to silently refresh expired access tokens
   avatarUrl?: string
   teamId?: string
   workerId?: string
