@@ -29,8 +29,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
     // Domain errors thrown from the service layer — duck-typed to survive hot-reload module identity changes
     if (
       exception instanceof Error &&
-      typeof (exception as Record<string, unknown>)['httpStatus'] === 'number' &&
-      typeof (exception as Record<string, unknown>)['code'] === 'string'
+      typeof (exception as unknown as Record<string, unknown>)['httpStatus'] === 'number' &&
+      typeof (exception as unknown as Record<string, unknown>)['code'] === 'string'
     ) {
       const domainErr = exception as unknown as { httpStatus: number; code: string; message: string }
       void response.status(domainErr.httpStatus).send({
