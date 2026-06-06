@@ -10,5 +10,8 @@ zone_name = "ritaro.dev"
 [vars]
 NEXT_PUBLIC_API_URL = "https://api.crewmate.ritaro.dev"
 
+[assets]
+directory = "apps/web/.open-next/assets"
+
 [build]
 command = "pnpm --filter web build"

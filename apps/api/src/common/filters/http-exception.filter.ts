@@ -6,7 +6,6 @@ import {
   HttpStatus,
 } from '@nestjs/common'
 import { FastifyReply } from 'fastify'
-import { DomainError } from '../errors/domain.errors'
 
 function toErrorCode(status: number): string {
   const map: Record<number, string> = {
@@ -27,12 +26,17 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const ctx = host.switchToHttp()
     const response = ctx.getResponse<FastifyReply>()
 
-    // Domain errors thrown from the service layer
-    if (exception instanceof DomainError) {
-      void response.status(exception.httpStatus).send({
+    // Domain errors thrown from the service layer — duck-typed to survive hot-reload module identity changes
+    if (
+      exception instanceof Error &&
+      typeof (exception as Record<string, unknown>)['httpStatus'] === 'number' &&
+      typeof (exception as Record<string, unknown>)['code'] === 'string'
+    ) {
+      const domainErr = exception as unknown as { httpStatus: number; code: string; message: string }
+      void response.status(domainErr.httpStatus).send({
         error: {
-          code: exception.code,
-          message: exception.message,
+          code: domainErr.code,
+          message: domainErr.message,
         },
       })
       return

@@ -45,7 +45,7 @@ export async function loginAction(email: string, password: string): Promise<{ er
     redirect(roleToRedirect(user.role as UserRole))
   } catch (err) {
     // redirect() throws internally — rethrow it
-    if (err instanceof Error && err.message === 'NEXT_REDIRECT') throw err
+    if (err instanceof Error && (err as { digest?: string }).digest?.startsWith('NEXT_REDIRECT')) throw err
     return { error: err instanceof Error ? err.message : 'Login failed. Please try again.' }
   }
 }
