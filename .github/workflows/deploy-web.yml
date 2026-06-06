@@ -9,6 +9,7 @@ on:
       - 'wrangler.toml'
       - 'open-next.config.ts'
       - 'pnpm-lock.yaml'
+      - '.github/workflows/deploy-web.yml'
 
 jobs:
   deploy:
