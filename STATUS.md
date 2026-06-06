@@ -6,22 +6,22 @@
 
 ## Current Phase
 
-**Phase 2 — Frontend (Waves 2A–2D + 2I complete)**
-Status: `IN PROGRESS — awaiting review before continuing`
+**Phase 2 — Frontend (ALL waves complete: 2A–2I)**
+Status: `COMPLETE — all screens built, zero typecheck errors`
 
 ---
 
 ## Last Session
 
-**Date:** 2026-06-05
-**Summary:** Waves 2A (design system), 2B (app shell), 2C (login), 2D (dashboard), and 2I (JobDetailDrawer + RevokeJobModal) implemented. Full login flow, sidebar, top bar, DemoActorSwitcher, Mapbox map with 40 job pins, KPI cards, activity feed, filter bar, and job detail drawer — all with dummy seed data. Zero typecheck errors.
+**Date:** 2026-06-06
+**Summary:** Waves 2E (Jobs Kanban), 2F (Workforce), 2G (Revenue), 2H (Worker Mobile) built in parallel worktrees and merged to main. Phase 2 code review fixes (getServerSession helper, workerCount fix, /worker route) and Phase 3 auth/dashboard integration also committed. All 9 screens complete with dummy seed data.
 **Completed by:** cm-orchestrator
 
 ---
 
 ## Active Right Now
 
-_Code review in progress for Phase 2 Waves 2A–2D + 2I._
+_Nothing active._
 
 ---
 
@@ -33,9 +33,8 @@ _Nothing blocked._
 
 ## Next Up
 
-After review is cleared:
-- **Waves 2E–2H:** Jobs Kanban, Workforce, Revenue, Worker Mobile screens (all parallel after review)
-- **Phase 1A:** Config module, PrismaService, `/healthz`, `/readyz`, auth module, CloudflareSecretGuard (can start in parallel)
+- **Phase 3 integration:** wire remaining screens (Jobs, Workforce, Revenue, Worker) to real API
+- **Phase 1 backend completion:** 1B Jobs API, 1C dashboard/workers/revenue endpoints, 1D WebSocket gateway, 1E seed + demo reset, 1F tests
 
 Full task breakdown: `.planning/STATE.md`
 
