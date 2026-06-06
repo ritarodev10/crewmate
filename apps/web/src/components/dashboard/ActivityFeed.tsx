@@ -132,6 +132,7 @@ export function ActivityFeed({ events }: ActivityFeedProps) {
                 dateTime={item.occurredAt}
                 title={new Date(item.occurredAt).toISOString()}
                 className="text-[11px] text-muted shrink-0 leading-none mt-0.5"
+                suppressHydrationWarning
               >
                 {relTime}
               </time>

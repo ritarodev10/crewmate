@@ -9,6 +9,7 @@ zone_name = "ritaro.dev"
 
 [vars]
 NEXT_PUBLIC_API_URL = "https://api.crewmate.ritaro.dev"
+API_URL = "https://api.crewmate.ritaro.dev/api/v1"
 
 [assets]
 directory = "apps/web/.open-next/assets"
