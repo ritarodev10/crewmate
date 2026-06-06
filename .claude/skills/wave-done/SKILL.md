@@ -44,15 +44,21 @@ A drift is any deviation from convention. If the reason is visible in the code o
 
 ### 4 — Write summary
 
-Create `.planning/summaries/sum-{YYYYMMDD}-{contextual-name}.md`.
+Get the current timestamp first:
+
+```bash
+date +"%Y-%m-%d_%H%M"   # e.g. 2026-06-05_1423
+```
+
+Create `.planning/summaries/sum_{YYYY-MM-DD_HHmm}_{contextual-name}.md`.
 
 The contextual name should describe what was actually built — not the wave number. Use kebab-case, 2–4 words.
 
 Examples:
-- `sum-20260605-monorepo-scaffold.md`
-- `sum-20260605-jobs-api.md`
-- `sum-20260606-dashboard-screen.md`
-- `sum-20260606-auth-module.md`
+- `sum_2026-06-05_1423_monorepo-scaffold.md`
+- `sum_2026-06-05_1834_jobs-api.md`
+- `sum_2026-06-06_0910_dashboard-screen.md`
+- `sum_2026-06-06_1548_auth-module.md`
 
 ---
 
@@ -61,7 +67,7 @@ Content:
 ```markdown
 # Wave Summary: {wave name}
 
-**Date:** YYYY-MM-DD
+**Date:** YYYY-MM-DD HH:MM
 **Phase:** Phase N
 **Commits:** {hash or range, or "uncommitted"}
 

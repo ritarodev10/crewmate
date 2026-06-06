@@ -91,7 +91,7 @@ function revenueCalc(job: Job): {
   platformProfit: number
   workerCount: number
 } {
-  const workerCount = job.assigneeKind === 'TEAM' ? 4 : 1
+  const workerCount = job.assigneeKind === 'TEAM' ? (job.team?.members?.length ?? 4) : 1
   const clientCharge = job.estimatedHours * job.clientRatePerHour * workerCount
 
   let workerTotal = 0

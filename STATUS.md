@@ -6,22 +6,22 @@
 
 ## Current Phase
 
-**Phase 0 — Scaffold + Deploy Pipeline**
-Status: `COMPLETE (pending live deploy gate)`
+**Phase 2 — Frontend (Waves 2A–2D + 2I complete)**
+Status: `IN PROGRESS — awaiting review before continuing`
 
 ---
 
 ## Last Session
 
 **Date:** 2026-06-05
-**Summary:** Phase 0 all 4 waves complete. `pnpm install` ✓, `pnpm --filter api build` ✓, `pnpm --filter web build` ✓, `pnpm typecheck` ✓. All 9 Prisma entities, 4-stage Dockerfile, railway.toml, wrangler.toml, 3 CI/CD workflows written. One manual gate remains.
+**Summary:** Waves 2A (design system), 2B (app shell), 2C (login), 2D (dashboard), and 2I (JobDetailDrawer + RevokeJobModal) implemented. Full login flow, sidebar, top bar, DemoActorSwitcher, Mapbox map with 40 job pins, KPI cards, activity feed, filter bar, and job detail drawer — all with dummy seed data. Zero typecheck errors.
 **Completed by:** cm-orchestrator
 
 ---
 
 ## Active Right Now
 
-_Nothing. Phase 0 code complete — awaiting manual deploy gate._
+_Code review in progress for Phase 2 Waves 2A–2D + 2I._
 
 ---
 
@@ -33,11 +33,9 @@ _Nothing blocked._
 
 ## Next Up
 
-**Manual gate (one-time):** Push to `main` → Railway creates service → verify `https://crewmate.ritaro.dev` returns 200.
-
-Then Phase 1 (backend) and Phase 2 (frontend) can both start in parallel:
-- **Phase 1A:** Config module, PrismaService, `/healthz`, `/readyz`, auth module, CloudflareSecretGuard
-- **Phase 2A:** CSS design tokens, shadcn/ui init, Zustand stores, TanStack Query client
+After review is cleared:
+- **Waves 2E–2H:** Jobs Kanban, Workforce, Revenue, Worker Mobile screens (all parallel after review)
+- **Phase 1A:** Config module, PrismaService, `/healthz`, `/readyz`, auth module, CloudflareSecretGuard (can start in parallel)
 
 Full task breakdown: `.planning/STATE.md`
 

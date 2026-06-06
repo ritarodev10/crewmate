@@ -1,3 +1,4 @@
+import type { ReadonlyRequestCookies } from 'next/dist/server/web/spec-extension/adapters/request-cookies'
 import type { UserRole } from '@web/stores/auth'
 
 export interface Session {
@@ -5,6 +6,7 @@ export interface Session {
   name: string
   role: UserRole
   operatorId: string
+  accessToken?: string  // JWT from real login — demo actor cookies won't have it
   avatarUrl?: string
   teamId?: string
   workerId?: string
@@ -63,3 +65,16 @@ export function roleToRedirect(role: UserRole): string {
 
 export const SESSION_COOKIE = 'crewmate_session'
 export const DEMO_ACTOR_COOKIE = 'demo_actor'
+
+export function getServerSession(cookieStore: ReadonlyRequestCookies): Session | null {
+  // demo_actor takes priority over crewmate_session
+  const demoRaw = cookieStore.get(DEMO_ACTOR_COOKIE)?.value
+  if (demoRaw) {
+    try { return JSON.parse(demoRaw) as Session } catch { /* fall through */ }
+  }
+  const sessionRaw = cookieStore.get(SESSION_COOKIE)?.value
+  if (sessionRaw) {
+    try { return JSON.parse(sessionRaw) as Session } catch { /* fall through */ }
+  }
+  return null
+}

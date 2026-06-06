@@ -4,13 +4,13 @@ import Link from 'next/link'
 import { formatDistanceToNow } from 'date-fns'
 import { Activity } from 'lucide-react'
 import { cn } from '@web/lib/utils'
-import type { ActivityFeedItem } from '@web/data/seed'
+import type { ActivityEvent } from '@web/types/api'
 
 interface ActivityFeedProps {
-  events: ActivityFeedItem[]
+  events: ActivityEvent[]
 }
 
-function getEventBadge(item: ActivityFeedItem): {
+function getEventBadge(item: ActivityEvent): {
   label: string
   className: string
 } {
@@ -23,23 +23,13 @@ function getEventBadge(item: ActivityFeedItem): {
   if (item.toStatus === 'CANCELLED') {
     return { label: 'job cancelled', className: 'bg-muted/20 text-muted border border-line' }
   }
-  if (item.progressPct !== null) {
+  if (item.note !== null) {
     return { label: 'progress updated', className: 'bg-amber/10 text-amber border border-amber/20' }
   }
   return { label: item.toStatus.toLowerCase().replace('_', ' '), className: 'bg-muted/10 text-muted border border-line' }
 }
 
-function WorkerAvatar({ name, avatarUrl }: { name: string; avatarUrl?: string }) {
-  if (avatarUrl) {
-    return (
-      <img
-        src={avatarUrl}
-        alt={name}
-        className="size-8 rounded-full object-cover shrink-0 ring-1 ring-black/10"
-        style={{ outline: '1px solid rgba(0,0,0,0.08)' }}
-      />
-    )
-  }
+function WorkerAvatar({ name }: { name: string }) {
   const initials = name
     .split(' ')
     .map(p => p[0])
@@ -108,18 +98,19 @@ export function ActivityFeed({ events }: ActivityFeedProps) {
         {events.map((item) => {
           const badge = getEventBadge(item)
           const relTime = formatDistanceToNow(new Date(item.occurredAt), { addSuffix: true })
+          const workerDisplayName = item.workerName ?? 'Unknown'
 
           return (
             <div
               key={item.id}
               className="flex items-start gap-3 px-3 py-2.5 rounded-lg hover:bg-surface/60 transition-colors group"
             >
-              <WorkerAvatar name={item.workerName} avatarUrl={item.workerAvatarUrl} />
+              <WorkerAvatar name={workerDisplayName} />
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-sm font-semibold text-default leading-none">
-                    {item.workerName}
+                    {workerDisplayName}
                   </span>
                   <span
                     className={cn(
@@ -134,8 +125,6 @@ export function ActivityFeed({ events }: ActivityFeedProps) {
                   <span className="text-[11px] text-muted font-mono">#{item.jobId}</span>
                   <span className="text-[11px] text-muted">·</span>
                   <span className="text-[11px] text-muted">{item.jobTypeLabel}</span>
-                  <span className="text-[11px] text-muted">·</span>
-                  <span className="text-[11px] text-muted truncate">{item.customerName}</span>
                 </div>
               </div>
 

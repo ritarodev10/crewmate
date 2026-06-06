@@ -14,6 +14,8 @@ export interface LoginResponse {
     id: string
     email: string
     role: string
+    name: string
+    operatorId: string
   }
 }
 
@@ -31,6 +33,7 @@ export class AuthService {
       select: {
         id: true,
         email: true,
+        name: true,
         passwordHash: true,
         role: true,
         operatorId: true,
@@ -71,6 +74,8 @@ export class AuthService {
         id: user.id,
         email: user.email,
         role: user.role,
+        name: user.name,
+        operatorId: user.operatorId,
       },
     }
   }

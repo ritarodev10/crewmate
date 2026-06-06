@@ -139,3 +139,26 @@ export interface JobStatusEvent {
 export interface ApiResponse<T> {
   data: T
 }
+
+// Dashboard types
+export interface DashboardSummaryData {
+  totalJobs: number
+  completedJobs: number
+  inProgressJobs: number
+  scheduledJobs: number
+  cancelledJobs: number
+  activeWorkers: number
+  todayRevenue: number  // cents
+  todayProfit: number   // cents
+}
+
+export interface ActivityEvent {
+  id: string
+  jobId: string
+  jobTypeLabel: string
+  workerName: string | null
+  fromStatus: string | null
+  toStatus: string
+  note: string | null
+  occurredAt: string
+}
