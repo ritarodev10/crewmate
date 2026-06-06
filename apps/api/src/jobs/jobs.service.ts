@@ -18,6 +18,7 @@ import { CreateJobDto } from './dto/create-job.dto'
 import { JobsFilterDto } from './dto/jobs-filter.dto'
 import { UpdateJobProgressDto } from './dto/update-job-progress.dto'
 import { CancelJobDto } from './dto/cancel-job.dto'
+import { EventsGateway } from '../events/events.gateway'
 
 // ---------------------------------------------------------------------------
 // Shared select shape for list + single item (without statusEvents)
@@ -93,7 +94,10 @@ const JOB_DETAIL_SELECT = {
 
 @Injectable()
 export class JobsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly events: EventsGateway,
+  ) {}
 
   // -------------------------------------------------------------------------
   // GET /jobs
@@ -309,6 +313,32 @@ export class JobsService {
       return job
     })
 
+    // Emit job status change
+    this.events.emit(user.operatorId, 'job.status.changed', {
+      jobId: existing.id,
+      status: targetStatus,
+      workerId: updated.worker?.id,
+      teamId: updated.team?.id,
+      lat: updated.lat,
+      lng: updated.lng,
+      progressPct: updated.progressPct,
+    })
+
+    // Emit worker status change when a solo worker's status is affected
+    if (updated.worker?.id) {
+      if (targetStatus === JobStatus.IN_PROGRESS) {
+        this.events.emit(user.operatorId, 'worker.status.changed', {
+          workerId: updated.worker.id,
+          status: 'ON_JOB',
+        })
+      } else if (targetStatus === JobStatus.COMPLETED) {
+        this.events.emit(user.operatorId, 'worker.status.changed', {
+          workerId: updated.worker.id,
+          status: 'IDLE',
+        })
+      }
+    }
+
     return { data: updated }
   }
 
@@ -349,6 +379,15 @@ export class JobsService {
       data: { progressPct: dto.progressPct },
       select: JOB_SELECT,
     })
+
+    // Emit progress update — workerId may be undefined for team jobs
+    if (updated.worker?.id) {
+      this.events.emit(user.operatorId, 'job.progress.updated', {
+        jobId: existing.id,
+        progressPct: dto.progressPct,
+        workerId: updated.worker.id,
+      })
+    }
 
     return { data: updated }
   }
@@ -410,6 +449,24 @@ export class JobsService {
 
       return job
     })
+
+    // Emit job.cancelled (not job.status.changed — see WebSocket convention)
+    this.events.emit(user.operatorId, 'job.cancelled', {
+      jobId: existing.id,
+      cancelReasonCode: dto.cancelReasonCode,
+      cancelledBy: user.sub,
+    })
+
+    // If the job was IN_PROGRESS when cancelled, the worker returns to IDLE
+    if (
+      existing.status === JobStatus.IN_PROGRESS &&
+      updated.worker?.id
+    ) {
+      this.events.emit(user.operatorId, 'worker.status.changed', {
+        workerId: updated.worker.id,
+        status: 'IDLE',
+      })
+    }
 
     return { data: updated }
   }

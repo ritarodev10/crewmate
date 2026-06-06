@@ -9,10 +9,16 @@
     "lint": "pnpm --filter api lint && pnpm --filter web lint",
     "test": "pnpm --filter api test"
   },
+  "prisma": {
+    "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
+  },
   "devDependencies": {
     "@prisma/client": "^6.0.0",
+    "@types/bcrypt": "^5.0.2",
+    "bcrypt": "^5.1.1",
     "concurrently": "^9.0.0",
     "prisma": "^6.0.0",
+    "ts-node": "^10.9.2",
     "typescript": "^5.7.0",
     "wrangler": "^4.86.0"
   },

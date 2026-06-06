@@ -6,6 +6,11 @@ import { PrismaModule } from './prisma/prisma.module'
 import { AuthModule } from './auth/auth.module'
 import { HealthModule } from './health/health.module'
 import { JobsModule } from './jobs/jobs.module'
+import { DashboardModule } from './dashboard/dashboard.module'
+import { WorkersModule } from './workers/workers.module'
+import { RevenueModule } from './revenue/revenue.module'
+import { SearchModule } from './search/search.module'
+import { DemoModule } from './demo/demo.module'
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard'
 import { RolesGuard } from './auth/guards/roles.guard'
 import { CloudflareSecretGuard } from './auth/guards/cloudflare-secret.guard'
@@ -18,6 +23,11 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter'
     AuthModule,
     HealthModule,
     JobsModule,
+    DashboardModule,
+    WorkersModule,
+    RevenueModule,
+    SearchModule,
+    DemoModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
