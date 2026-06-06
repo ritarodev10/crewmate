@@ -4,10 +4,12 @@ import Link from 'next/link'
 import { formatDistanceToNow } from 'date-fns'
 import { Activity } from 'lucide-react'
 import { cn } from '@web/lib/utils'
+import { Skeleton } from '@web/components/ui/skeleton'
 import type { ActivityEvent } from '@web/types/api'
 
 interface ActivityFeedProps {
   events: ActivityEvent[]
+  loading?: boolean
 }
 
 function getEventBadge(item: ActivityEvent): {
@@ -59,7 +61,24 @@ function WorkerAvatar({ name }: { name: string }) {
   )
 }
 
-export function ActivityFeed({ events }: ActivityFeedProps) {
+export function ActivityFeed({ events, loading }: ActivityFeedProps) {
+  if (loading) {
+    return (
+      <div className="flex flex-col gap-0.5">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="flex items-start gap-3 px-3 py-2.5">
+            <Skeleton className="size-8 rounded-full shrink-0" />
+            <div className="flex-1 space-y-2">
+              <Skeleton className="h-3 w-32 rounded" />
+              <Skeleton className="h-3 w-48 rounded" />
+            </div>
+            <Skeleton className="h-3 w-12 rounded shrink-0" />
+          </div>
+        ))}
+      </div>
+    )
+  }
+
   if (events.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">

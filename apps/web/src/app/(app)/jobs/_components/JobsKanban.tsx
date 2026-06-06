@@ -1,14 +1,16 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useMemo } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { cn } from '@web/lib/utils'
+import { Skeleton } from '@web/components/ui/skeleton'
 import { JobCard } from './JobCard'
 import { NewJobModal } from './NewJobModal'
 import { JobDetailDrawer } from '@web/components/shared/JobDetailDrawer'
 import { JobFilterBar, applyJobFilters } from '@web/components/shared/JobFilterBar'
-import type { Job, JobStatus, Worker } from '@web/types/api'
+import { useJobs, useWorkers } from '../_hooks/use-jobs'
+import type { Job, JobStatus, JobType } from '@web/types/api'
 import type { Session } from '@web/lib/session'
 import type { JobFilters } from '@web/components/shared/JobFilterBar'
 
@@ -56,29 +58,47 @@ const COLUMNS: KanbanColumn[] = [
 ]
 
 // ---------------------------------------------------------------------------
+// Loading skeleton
+// ---------------------------------------------------------------------------
+
+function KanbanSkeleton() {
+  return (
+    <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {COLUMNS.map((col) => (
+        <div key={col.status} className="flex flex-col min-h-[200px]">
+          <div className={cn('rounded-t-xl border-x border-t px-3 py-2.5 flex items-center gap-2', col.headerClass)}>
+            <Skeleton className="h-3 w-20 rounded" />
+            <Skeleton className="h-5 w-6 rounded-full ml-auto" />
+          </div>
+          <div className={cn('flex-1 rounded-b-xl border border-t-0 border-line p-2 space-y-2', col.bodyClass)}>
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="rounded-lg border border-line bg-surface p-3 space-y-2">
+                <Skeleton className="h-3 w-24 rounded" />
+                <Skeleton className="h-3 w-full rounded" />
+                <Skeleton className="h-3 w-3/4 rounded" />
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // JobsKanban
 // ---------------------------------------------------------------------------
 
 interface JobsKanbanProps {
-  jobs: Job[]
-  workers: Worker[]
-  customers: Array<{ id: string; name: string }>
-  jobTypes: Array<{ id: string; name: string; label: string; estimatedHours: number }>
-  teams: Array<{ id: string; name: string }>
   session: Session | null
   token: string | undefined
 }
 
-export function JobsKanban({
-  jobs,
-  workers,
-  customers,
-  jobTypes,
-  teams,
-  session,
-  token,
-}: JobsKanbanProps) {
-  const router = useRouter()
+export function JobsKanban({ session, token }: JobsKanbanProps) {
+  const queryClient = useQueryClient()
+  const { data: allJobs, isLoading: jobsLoading } = useJobs()
+  const { data: workers = [] } = useWorkers()
+
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null)
   const [newJobOpen, setNewJobOpen] = useState(false)
   const [filters, setFilters] = useState<JobFilters>({
@@ -88,19 +108,60 @@ export function JobsKanban({
     jobTypeId: null,
   })
 
-  const canCreateJob =
-    session?.role === 'SUPER_ADMIN' || session?.role === 'MANAGER'
+  const canCreateJob = session?.role === 'SUPER_ADMIN' || session?.role === 'MANAGER'
 
-  const filteredJobs = applyJobFilters(jobs, filters)
+  const visibleJobs = useMemo<Job[]>(() => {
+    if (!allJobs || !session) return []
+    if (session.role === 'SUPER_ADMIN' || session.role === 'MANAGER') return allJobs
+    if (session.role === 'TEAM_LEAD') return allJobs.filter((j) => j.assigneeKind === 'TEAM')
+    return []
+  }, [allJobs, session])
+
+  const customers = useMemo(() => {
+    const map = new Map<string, { id: string; name: string }>()
+    for (const job of visibleJobs) {
+      if (job.customer && !map.has(job.customerId)) {
+        map.set(job.customerId, { id: job.customerId, name: job.customer.name })
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name))
+  }, [visibleJobs])
+
+  const jobTypes = useMemo(() => {
+    const map = new Map<string, Pick<JobType, 'id' | 'name' | 'label' | 'estimatedHours'>>()
+    for (const job of visibleJobs) {
+      if (job.jobType && !map.has(job.jobTypeId)) {
+        map.set(job.jobTypeId, {
+          id: job.jobType.id,
+          name: job.jobType.name,
+          label: job.jobType.label,
+          estimatedHours: (job.jobType as { estimatedHours?: number }).estimatedHours ?? job.estimatedHours,
+        })
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label))
+  }, [visibleJobs])
+
+  const teams = useMemo(() => {
+    const map = new Map<string, { id: string; name: string }>()
+    for (const job of visibleJobs) {
+      if (job.team && job.teamId && !map.has(job.teamId)) {
+        map.set(job.teamId, { id: job.team.id, name: job.team.name })
+      }
+    }
+    return Array.from(map.values())
+  }, [visibleJobs])
+
+  const filteredJobs = applyJobFilters(visibleJobs, filters)
 
   function handleJobCreated() {
     setNewJobOpen(false)
-    router.refresh()
+    void queryClient.invalidateQueries({ queryKey: ['jobs'] })
   }
 
   function handleJobCancelled(_jobId: string) {
     setSelectedJobId(null)
-    router.refresh()
+    void queryClient.invalidateQueries({ queryKey: ['jobs'] })
   }
 
   return (
@@ -131,56 +192,53 @@ export function JobsKanban({
       </div>
 
       {/* Kanban board */}
-      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {COLUMNS.map((col) => {
-          const colJobs = filteredJobs.filter((j) => j.status === col.status)
-          return (
-            <div key={col.status} className="flex flex-col min-h-[200px]">
-              {/* Column header */}
-              <div
-                className={cn(
-                  'rounded-t-xl border-x border-t px-3 py-2.5 flex items-center gap-2',
-                  col.headerClass
-                )}
-              >
-                <span className="text-xs font-bold uppercase tracking-widest text-default flex-1">
-                  {col.label}
-                </span>
-                <span
+      {jobsLoading ? (
+        <KanbanSkeleton />
+      ) : (
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {COLUMNS.map((col) => {
+            const colJobs = filteredJobs.filter((j) => j.status === col.status)
+            return (
+              <div key={col.status} className="flex flex-col min-h-[200px]">
+                <div
                   className={cn(
-                    'inline-flex items-center justify-center rounded-full px-2 py-0.5 text-[11px] font-bold tabular-nums leading-none',
-                    col.countClass
+                    'rounded-t-xl border-x border-t px-3 py-2.5 flex items-center gap-2',
+                    col.headerClass
                   )}
                 >
-                  {colJobs.length}
-                </span>
+                  <span className="text-xs font-bold uppercase tracking-widest text-default flex-1">
+                    {col.label}
+                  </span>
+                  <span
+                    className={cn(
+                      'inline-flex items-center justify-center rounded-full px-2 py-0.5 text-[11px] font-bold tabular-nums leading-none',
+                      col.countClass
+                    )}
+                  >
+                    {colJobs.length}
+                  </span>
+                </div>
+                <div
+                  className={cn(
+                    'flex-1 rounded-b-xl border border-t-0 border-line p-2 space-y-2',
+                    col.bodyClass
+                  )}
+                >
+                  {colJobs.length === 0 ? (
+                    <div className="flex items-center justify-center py-8">
+                      <p className="text-xs text-muted">No jobs</p>
+                    </div>
+                  ) : (
+                    colJobs.map((job) => (
+                      <JobCard key={job.id} job={job} onClick={setSelectedJobId} />
+                    ))
+                  )}
+                </div>
               </div>
-
-              {/* Column body */}
-              <div
-                className={cn(
-                  'flex-1 rounded-b-xl border border-t-0 border-line p-2 space-y-2',
-                  col.bodyClass
-                )}
-              >
-                {colJobs.length === 0 ? (
-                  <div className="flex items-center justify-center py-8">
-                    <p className="text-xs text-muted">No jobs</p>
-                  </div>
-                ) : (
-                  colJobs.map((job) => (
-                    <JobCard
-                      key={job.id}
-                      job={job}
-                      onClick={setSelectedJobId}
-                    />
-                  ))
-                )}
-              </div>
-            </div>
-          )
-        })}
-      </div>
+            )
+          })}
+        </div>
+      )}
 
       {/* Job detail drawer */}
       <JobDetailDrawer
