@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { format } from 'date-fns'
 import {
   X,
@@ -24,8 +24,9 @@ import {
   SheetTitle,
 } from '@web/components/ui/sheet'
 import { Button } from '@web/components/ui/button'
+import { Skeleton } from '@web/components/ui/skeleton'
 import { cn } from '@web/lib/utils'
-import { JOBS } from '@web/data/seed'
+import { fetchJobDetailAction } from '@web/app/(app)/jobs/actions'
 import type { Session } from '@web/lib/session'
 import type { Job, Worker } from '@web/types/api'
 import { RevokeJobModal } from '@web/components/shared/RevokeJobModal'
@@ -34,6 +35,8 @@ interface JobDetailDrawerProps {
   jobId: string | null
   onClose: () => void
   session: Session | null
+  token?: string
+  onJobCancelled?: (jobId: string) => void
 }
 
 const STATUS_BADGE: Record<string, string> = {
@@ -113,13 +116,33 @@ function revenueCalc(job: Job): {
 }
 
 function formatCurrency(cents: number): string {
-  return `€${cents.toLocaleString('en-EU', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+  return `€${(cents / 100).toLocaleString('en-EU', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  })}`
 }
 
-export function JobDetailDrawer({ jobId, onClose, session }: JobDetailDrawerProps) {
+export function JobDetailDrawer({
+  jobId,
+  onClose,
+  session,
+  token,
+  onJobCancelled,
+}: JobDetailDrawerProps) {
   const [revokeOpen, setRevokeOpen] = useState(false)
+  const [job, setJob] = useState<Job | null>(null)
+  const [loadingJob, setLoadingJob] = useState(false)
 
-  const job = jobId ? JOBS.find((j) => j.id === jobId) ?? null : null
+  useEffect(() => {
+    if (!jobId || !token) {
+      setJob(null)
+      return
+    }
+    setLoadingJob(true)
+    fetchJobDetailAction(token, jobId)
+      .then(setJob)
+      .finally(() => setLoadingJob(false))
+  }, [jobId, token])
 
   const canSeeRevenue =
     session?.role === 'SUPER_ADMIN' || session?.role === 'MANAGER'
@@ -137,18 +160,55 @@ export function JobDetailDrawer({ jobId, onClose, session }: JobDetailDrawerProp
           showCloseButton={false}
           className="w-full sm:w-[480px] sm:max-w-[480px] p-0 flex flex-col bg-canvas"
         >
-          {job ? <DrawerBody job={job} session={session} canSeeRevenue={canSeeRevenue} canRevoke={canRevoke} isRevokable={isRevokable} onClose={onClose} onRevoke={() => setRevokeOpen(true)} /> : <DrawerEmpty onClose={onClose} />}
+          {job ? (
+            <DrawerBody
+              job={job}
+              session={session}
+              canSeeRevenue={canSeeRevenue}
+              canRevoke={canRevoke}
+              isRevokable={isRevokable}
+              onClose={onClose}
+              onRevoke={() => setRevokeOpen(true)}
+            />
+          ) : loadingJob ? (
+            <DrawerLoading onClose={onClose} />
+          ) : (
+            <DrawerEmpty onClose={onClose} />
+          )}
         </SheetContent>
       </Sheet>
 
       {jobId && (
         <RevokeJobModal
-          jobId={jobId}
+          jobId={jobId ?? ''}
           open={revokeOpen}
           onClose={() => setRevokeOpen(false)}
+          token={token}
+          onSuccess={() => {
+            setRevokeOpen(false)
+            onJobCancelled?.(jobId ?? '')
+          }}
         />
       )}
     </>
+  )
+}
+
+function DrawerLoading({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="flex flex-col h-full">
+      <div className="flex items-center justify-between p-4 border-b border-line bg-surface">
+        <Skeleton className="h-4 w-32 rounded" />
+        <button onClick={onClose} className="p-1.5 rounded-md hover:bg-canvas transition-colors">
+          <X className="size-4 text-muted" />
+        </button>
+      </div>
+      <div className="p-5 space-y-4">
+        <Skeleton className="h-4 w-full rounded" />
+        <Skeleton className="h-4 w-3/4 rounded" />
+        <Skeleton className="h-20 w-full rounded-xl" />
+      </div>
+    </div>
   )
 }
 
@@ -175,7 +235,7 @@ interface DrawerBodyProps {
   onRevoke: () => void
 }
 
-function DrawerBody({ job, session, canSeeRevenue, canRevoke, isRevokable, onClose, onRevoke }: DrawerBodyProps) {
+function DrawerBody({ job, session: _session, canSeeRevenue, canRevoke, isRevokable, onClose, onRevoke }: DrawerBodyProps) {
   const { clientCharge, workerTotal, platformProfit } = revenueCalc(job)
   const isProjected = job.status !== 'COMPLETED'
 

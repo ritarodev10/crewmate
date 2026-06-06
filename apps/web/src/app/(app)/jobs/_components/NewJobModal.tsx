@@ -12,7 +12,8 @@ import {
 } from '@web/components/ui/dialog'
 import { Button } from '@web/components/ui/button'
 import { cn } from '@web/lib/utils'
-import { CUSTOMERS, JOB_TYPES, TEAMS, WORKERS } from '@web/data/seed'
+import { createJobAction } from '../actions'
+import type { Worker } from '@web/types/api'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -47,17 +48,34 @@ const EMPTY_FORM: NewJobFormState = {
 interface NewJobModalProps {
   open: boolean
   onClose: () => void
+  onSuccess: () => void
+  customers: Array<{ id: string; name: string }>
+  jobTypes: Array<{ id: string; label: string; estimatedHours: number }>
+  workers: Worker[]
+  teams: Array<{ id: string; name: string }>
+  token: string | undefined
 }
 
-export function NewJobModal({ open, onClose }: NewJobModalProps) {
+export function NewJobModal({
+  open,
+  onClose,
+  onSuccess,
+  customers,
+  jobTypes,
+  workers,
+  teams,
+  token,
+}: NewJobModalProps) {
   const [form, setForm] = useState<NewJobFormState>(EMPTY_FORM)
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   function handleClose() {
     if (loading) return
     setForm(EMPTY_FORM)
     setSuccess(false)
+    setError(null)
     onClose()
   }
 
@@ -74,9 +92,10 @@ export function NewJobModal({ open, onClose }: NewJobModalProps) {
     return true
   }
 
-  function handleSubmit() {
-    if (!isValid() || loading) return
+  async function handleSubmit() {
+    if (!isValid() || loading || !token) return
     setLoading(true)
+    setError(null)
 
     const payload = {
       customerId: form.customerId,
@@ -88,14 +107,19 @@ export function NewJobModal({ open, onClose }: NewJobModalProps) {
       estimatedHours: parseFloat(form.estimatedHours),
     }
 
-    console.log('[NewJobModal] submit payload:', payload)
+    const result = await createJobAction(token, payload)
+    setLoading(false)
 
+    if ('error' in result) {
+      setError(result.error)
+      return
+    }
+
+    setSuccess(true)
     setTimeout(() => {
-      setLoading(false)
-      setSuccess(true)
-      // Auto-close after 1.5s
-      setTimeout(() => handleClose(), 1500)
-    }, 500)
+      onSuccess()
+      handleClose()
+    }, 1000)
   }
 
   return (
@@ -124,7 +148,7 @@ export function NewJobModal({ open, onClose }: NewJobModalProps) {
                 className={selectClass}
               >
                 <option value="">Select customer…</option>
-                {CUSTOMERS.map((c) => (
+                {customers.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
                   </option>
@@ -137,7 +161,7 @@ export function NewJobModal({ open, onClose }: NewJobModalProps) {
               <select
                 value={form.jobTypeId}
                 onChange={(e) => {
-                  const jt = JOB_TYPES.find((j) => j.id === e.target.value)
+                  const jt = jobTypes.find((j) => j.id === e.target.value)
                   patch({
                     jobTypeId: e.target.value,
                     estimatedHours: jt ? String(jt.estimatedHours) : form.estimatedHours,
@@ -147,7 +171,7 @@ export function NewJobModal({ open, onClose }: NewJobModalProps) {
                 className={selectClass}
               >
                 <option value="">Select job type…</option>
-                {JOB_TYPES.map((jt) => (
+                {jobTypes.map((jt) => (
                   <option key={jt.id} value={jt.id}>
                     {jt.label}
                   </option>
@@ -187,7 +211,7 @@ export function NewJobModal({ open, onClose }: NewJobModalProps) {
                   className={selectClass}
                 >
                   <option value="">Select worker…</option>
-                  {WORKERS.filter((w) => w.kind === 'SOLO' || w.kind === 'TEAM_LEAD').map((w) => (
+                  {workers.filter((w) => w.kind === 'SOLO' || w.kind === 'TEAM_LEAD').map((w) => (
                     <option key={w.id} value={w.id}>
                       {w.name} ({w.status})
                     </option>
@@ -203,7 +227,7 @@ export function NewJobModal({ open, onClose }: NewJobModalProps) {
                   className={selectClass}
                 >
                   <option value="">Select team…</option>
-                  {TEAMS.map((t) => (
+                  {teams.map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.name}
                     </option>
@@ -237,6 +261,10 @@ export function NewJobModal({ open, onClose }: NewJobModalProps) {
                 className={inputClass}
               />
             </FormField>
+
+            {error && (
+              <p className="text-sm text-danger font-medium">{error}</p>
+            )}
           </div>
         )}
 
@@ -246,7 +274,7 @@ export function NewJobModal({ open, onClose }: NewJobModalProps) {
               Cancel
             </Button>
             <Button
-              onClick={handleSubmit}
+              onClick={() => { void handleSubmit() }}
               disabled={!isValid() || loading}
               className="gap-2"
             >

@@ -12,12 +12,15 @@ import {
 } from '@web/components/ui/dialog'
 import { Button } from '@web/components/ui/button'
 import { cn } from '@web/lib/utils'
+import { cancelJobAction } from '@web/app/(app)/jobs/actions'
 import type { CancelCode } from '@web/types/api'
 
 interface RevokeJobModalProps {
   jobId: string
   open: boolean
   onClose: () => void
+  token?: string
+  onSuccess?: () => void
 }
 
 const CANCEL_REASONS: { code: CancelCode; label: string }[] = [
@@ -29,28 +32,41 @@ const CANCEL_REASONS: { code: CancelCode; label: string }[] = [
   { code: 'EMERGENCY_RECALL', label: 'Worker recalled for emergency' },
 ]
 
-export function RevokeJobModal({ jobId, open, onClose }: RevokeJobModalProps) {
+export function RevokeJobModal({ jobId, open, onClose, token, onSuccess }: RevokeJobModalProps) {
   const [selectedReason, setSelectedReason] = useState<CancelCode | null>(null)
   const [note, setNote] = useState('')
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   function handleClose() {
     if (loading) return
     setSelectedReason(null)
     setNote('')
+    setError(null)
     onClose()
   }
 
-  function handleConfirm() {
-    if (!selectedReason || loading) return
+  async function handleConfirm() {
+    if (!selectedReason || loading || !token) return
     setLoading(true)
-    // Phase 2: simulate API call
-    setTimeout(() => {
-      setLoading(false)
-      setSelectedReason(null)
-      setNote('')
-      onClose()
-    }, 500)
+    setError(null)
+
+    const result = await cancelJobAction(token, jobId, {
+      cancelReasonCode: selectedReason,
+      ...(note.trim() ? { cancelReasonNote: note.trim() } : {}),
+    })
+
+    setLoading(false)
+
+    if ('error' in result) {
+      setError(result.error)
+      return
+    }
+
+    setSelectedReason(null)
+    setNote('')
+    onSuccess?.()
+    onClose()
   }
 
   return (
@@ -118,6 +134,10 @@ export function RevokeJobModal({ jobId, open, onClose }: RevokeJobModalProps) {
           <p className="text-sm text-danger font-medium">This action cannot be undone.</p>
         </div>
 
+        {error && (
+          <p className="text-sm text-danger font-medium">{error}</p>
+        )}
+
         <DialogFooter>
           <Button
             variant="outline"
@@ -128,7 +148,7 @@ export function RevokeJobModal({ jobId, open, onClose }: RevokeJobModalProps) {
           </Button>
           <Button
             variant="destructive"
-            onClick={handleConfirm}
+            onClick={() => { void handleConfirm() }}
             disabled={!selectedReason || loading}
             className="gap-2"
           >

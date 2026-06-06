@@ -2,8 +2,7 @@
 
 import { Search, X } from 'lucide-react'
 import { cn } from '@web/lib/utils'
-import type { Job, JobStatus } from '@web/types/api'
-import type { JobType, Worker } from '@web/types/api'
+import type { Job, JobStatus, Worker } from '@web/types/api'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -20,7 +19,7 @@ interface JobFilterBarProps {
   filters: JobFilters
   onChange: (filters: JobFilters) => void
   workers: Worker[]
-  jobTypes: JobType[]
+  jobTypes: Array<{ id: string; label: string }>
 }
 
 // ---------------------------------------------------------------------------

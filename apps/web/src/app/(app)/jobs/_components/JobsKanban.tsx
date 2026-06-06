@@ -1,14 +1,14 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Plus } from 'lucide-react'
 import { cn } from '@web/lib/utils'
 import { JobCard } from './JobCard'
 import { NewJobModal } from './NewJobModal'
 import { JobDetailDrawer } from '@web/components/shared/JobDetailDrawer'
 import { JobFilterBar, applyJobFilters } from '@web/components/shared/JobFilterBar'
-import { WORKERS, JOB_TYPES } from '@web/data/seed'
-import type { Job, JobStatus } from '@web/types/api'
+import type { Job, JobStatus, Worker } from '@web/types/api'
 import type { Session } from '@web/lib/session'
 import type { JobFilters } from '@web/components/shared/JobFilterBar'
 
@@ -61,10 +61,24 @@ const COLUMNS: KanbanColumn[] = [
 
 interface JobsKanbanProps {
   jobs: Job[]
+  workers: Worker[]
+  customers: Array<{ id: string; name: string }>
+  jobTypes: Array<{ id: string; name: string; label: string; estimatedHours: number }>
+  teams: Array<{ id: string; name: string }>
   session: Session | null
+  token: string | undefined
 }
 
-export function JobsKanban({ jobs, session }: JobsKanbanProps) {
+export function JobsKanban({
+  jobs,
+  workers,
+  customers,
+  jobTypes,
+  teams,
+  session,
+  token,
+}: JobsKanbanProps) {
+  const router = useRouter()
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null)
   const [newJobOpen, setNewJobOpen] = useState(false)
   const [filters, setFilters] = useState<JobFilters>({
@@ -79,14 +93,15 @@ export function JobsKanban({ jobs, session }: JobsKanbanProps) {
 
   const filteredJobs = applyJobFilters(jobs, filters)
 
-  // Build a unique list of workers that appear in these jobs
-  const jobWorkers = WORKERS.filter((w) =>
-    jobs.some(
-      (j) =>
-        j.workerId === w.id ||
-        (j.team?.members ?? []).some((m) => m.workerId === w.id)
-    )
-  )
+  function handleJobCreated() {
+    setNewJobOpen(false)
+    router.refresh()
+  }
+
+  function handleJobCancelled(_jobId: string) {
+    setSelectedJobId(null)
+    router.refresh()
+  }
 
   return (
     <>
@@ -96,8 +111,8 @@ export function JobsKanban({ jobs, session }: JobsKanbanProps) {
           <JobFilterBar
             filters={filters}
             onChange={setFilters}
-            workers={jobWorkers}
-            jobTypes={JOB_TYPES}
+            workers={workers}
+            jobTypes={jobTypes}
           />
         </div>
         {canCreateJob && (
@@ -172,6 +187,8 @@ export function JobsKanban({ jobs, session }: JobsKanbanProps) {
         jobId={selectedJobId}
         onClose={() => setSelectedJobId(null)}
         session={session}
+        token={token}
+        onJobCancelled={handleJobCancelled}
       />
 
       {/* New job modal */}
@@ -179,6 +196,12 @@ export function JobsKanban({ jobs, session }: JobsKanbanProps) {
         <NewJobModal
           open={newJobOpen}
           onClose={() => setNewJobOpen(false)}
+          onSuccess={handleJobCreated}
+          customers={customers}
+          jobTypes={jobTypes}
+          workers={workers}
+          teams={teams}
+          token={token}
         />
       )}
     </>

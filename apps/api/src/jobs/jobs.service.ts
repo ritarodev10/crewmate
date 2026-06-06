@@ -54,6 +54,7 @@ const JOB_SELECT = {
       id: true,
       name: true,
       label: true,
+      estimatedHours: true,
     },
   },
   worker: {
